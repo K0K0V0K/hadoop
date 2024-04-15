@@ -90,16 +90,17 @@ public interface CGroupsHandler {
   String CGROUP_CPU_PERIOD_US = "cfs_period_us";
   String CGROUP_CPU_QUOTA_US = "cfs_quota_us";
   String CGROUP_CPU_SHARES = "shares";
+  String CGROUP_PARAM_WEIGHT = "weight";
 
   // v2 specific params
   String CGROUP_CONTROLLERS_FILE = "cgroup.controllers";
   String CGROUP_SUBTREE_CONTROL_FILE = "cgroup.subtree_control";
   String CGROUP_CPU_MAX = "max";
+  String CGROUP_BFQ_WEIGHT = "bfq.weight";
 
   // present in v1 and v2
   String CGROUP_PROCS_FILE = "cgroup.procs";
   String CGROUP_PARAM_CLASSID = "classid";
-  String CGROUP_PARAM_WEIGHT = "weight";
 
   /**
    * Mounts or initializes a cgroup controller.

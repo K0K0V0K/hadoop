@@ -67,8 +67,7 @@ public class ResourceHandlerModule {
   private static volatile NetworkPacketTaggingHandlerImpl
       networkPacketTaggingHandlerImpl;
   private static volatile CGroupsHandler cGroupsHandler;
-  private static volatile CGroupsBlkioResourceHandlerImpl
-      cGroupsBlkioResourceHandler;
+  private static volatile DiskResourceHandler diskResourceHandler;
   private static volatile CGroupsMemoryResourceHandlerImpl
       cGroupsMemoryResourceHandler;
   private static volatile CGroupsCpuResourceHandlerImpl
@@ -121,11 +120,6 @@ public class ResourceHandlerModule {
   public static NetworkPacketTaggingHandlerImpl
       getNetworkResourceHandler() {
     return networkPacketTaggingHandlerImpl;
-  }
-
-  public static DiskResourceHandler
-      getDiskResourceHandler() {
-    return cGroupsBlkioResourceHandler;
   }
 
   public static MemoryResourceHandler
@@ -227,24 +221,16 @@ public class ResourceHandlerModule {
       throws ResourceHandlerException {
     if (conf.getBoolean(YarnConfiguration.NM_DISK_RESOURCE_ENABLED,
         YarnConfiguration.DEFAULT_NM_DISK_RESOURCE_ENABLED)) {
-      return getCgroupsBlkioResourceHandler(conf);
-    }
-    return null;
-  }
-
-  private static CGroupsBlkioResourceHandlerImpl getCgroupsBlkioResourceHandler(
-      Configuration conf) throws ResourceHandlerException {
-    if (cGroupsBlkioResourceHandler == null) {
       synchronized (DiskResourceHandler.class) {
-        if (cGroupsBlkioResourceHandler == null) {
+        if (diskResourceHandler == null) {
           LOG.debug("Creating new cgroups blkio handler");
-          cGroupsBlkioResourceHandler =
-              new CGroupsBlkioResourceHandlerImpl(
-                  getInitializedCGroupsHandler(conf));
+          diskResourceHandler =
+              new CGroupsBlkioResourceHandlerImpl(getInitializedCGroupsHandler(conf));
+          //TODO: use CGroupsIOResourceHandlerImpl if v2
         }
       }
     }
-    return cGroupsBlkioResourceHandler;
+    return diskResourceHandler;
   }
 
   public static MemoryResourceHandler initMemoryResourceHandler(

@@ -43,8 +43,10 @@ public interface ResourceHandler {
    * @return (possibly empty) list of operations that require elevated
    * privileges
    */
-  List<PrivilegedOperation> bootstrap(Configuration configuration)
-      throws ResourceHandlerException;
+  default List<PrivilegedOperation> bootstrap(Configuration configuration)
+      throws ResourceHandlerException {
+    return null;
+  };
 
   /**
    * Prepare a resource environment for container launch
@@ -55,8 +57,10 @@ public interface ResourceHandler {
    * file for a cgroup.
    * @throws ResourceHandlerException
    */
-  List<PrivilegedOperation> preStart(Container container)
-      throws ResourceHandlerException;
+  default List<PrivilegedOperation> preStart(Container container)
+      throws ResourceHandlerException {
+    return null;
+  };
 
   /**
    * Require state for container that was already launched
@@ -67,8 +71,10 @@ public interface ResourceHandler {
    * @throws ResourceHandlerException
    */
 
-  List<PrivilegedOperation> reacquireContainer(ContainerId containerId)
-      throws ResourceHandlerException;
+  default List<PrivilegedOperation> reacquireContainer(ContainerId containerId)
+      throws ResourceHandlerException {
+    return null;
+  };
 
   /**
    * Update state for container that was already launched
@@ -79,8 +85,10 @@ public interface ResourceHandler {
    * @throws ResourceHandlerException
    */
 
-  List<PrivilegedOperation> updateContainer(Container container)
-      throws ResourceHandlerException;
+  default List<PrivilegedOperation> updateContainer(Container container)
+      throws ResourceHandlerException {
+    return null;
+  };
 
   /**
    * Perform any tasks necessary after container completion.
@@ -89,8 +97,10 @@ public interface ResourceHandler {
    * privileges
    * @throws ResourceHandlerException
    */
-  List<PrivilegedOperation> postComplete(ContainerId containerId) throws
-      ResourceHandlerException;
+  default List<PrivilegedOperation> postComplete(ContainerId containerId) throws
+      ResourceHandlerException {
+    return null;
+  };
 
   /**
    * Teardown environment for resource subsystem if requested. This method
@@ -99,5 +109,7 @@ public interface ResourceHandler {
    * @return (possibly empty) list of operations that require elevated
    * privileges
    */
-  List<PrivilegedOperation> teardown() throws ResourceHandlerException;
+  default List<PrivilegedOperation> teardown() throws ResourceHandlerException {
+    return null;
+  };
 }
