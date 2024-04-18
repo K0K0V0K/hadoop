@@ -148,6 +148,8 @@ class CGroupsV2HandlerImpl extends AbstractCGroupsHandler {
       File subtreeControlFile = new File(yarnHierarchy.getAbsolutePath()
           + Path.SEPARATOR + CGROUP_SUBTREE_CONTROL_FILE);
 
+
+
       Writer w = new OutputStreamWriter(Files.newOutputStream(subtreeControlFile.toPath()), StandardCharsets.UTF_8);
       pw = new PrintWriter(w);
       pw.write(String.join(" ", enabledControllers));
