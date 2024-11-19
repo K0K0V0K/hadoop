@@ -1010,6 +1010,22 @@ public class CommonConfigurationKeysPublic {
    * <a href="{@docRoot}/../hadoop-project-dist/hadoop-common/core-default.xml">
    * core-default.xml</a>
    */
+  public static final String HMAC_ALGORITHM = "hadoop.security.hmac-algorithm";
+  public static final String DEFAULT_HMAC_ALGORITHM = "HmacSHA1";
+
+  /**
+   * @see
+   * <a href="{@docRoot}/../hadoop-project-dist/hadoop-common/core-default.xml">
+   * core-default.xml</a>
+   */
+  public static final String HMAC_LENGTH = "hadoop.security.hmac-length";
+  public static final int DEFAULT_HMAC_LENGTH = 64;
+
+  /**
+   * @see
+   * <a href="{@docRoot}/../hadoop-project-dist/hadoop-common/core-default.xml">
+   * core-default.xml</a>
+   */
   public static final String HADOOP_SECURITY_SENSITIVE_CONFIG_KEYS =
       "hadoop.security.sensitive-config-keys";
   public static final String HADOOP_SECURITY_SENSITIVE_CONFIG_KEYS_DEFAULT =

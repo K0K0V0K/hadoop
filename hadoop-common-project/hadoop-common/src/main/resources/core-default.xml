@@ -1046,6 +1046,32 @@
   </description>
 </property>
 
+<property>
+  <name>hadoop.security.hmac-algorithm</name>
+  <value>HmacSHA1</value>
+  <description>The configuration key specifying the hashing algorithm used for
+    HMAC (Hash-based Message Authentication Code) operations.
+
+    The HMAC algorithm is used in token management to compute secure
+    message digests. This configuration allows users to specify the
+    algorithm to be used for HMAC operations. The algorithm must be a
+    valid cryptographic hash algorithm supported by the Java Cryptography
+    Architecture (JCA). Common examples include "HmacSHA1", "HmacSHA256",
+    and "HmacSHA512".</description>
+</property>
+
+<property>
+  <name>hadoop.security.hmac-length</name>
+  <value>64</value>
+  <description>The configuration key specifying the key length for HMAC (Hash-based
+    Message Authentication Code) operations.
+
+    This property determines the size of the secret keys generated
+    for HMAC computations. The key length must be appropriate for the
+    selected HMAC algorithm. For example, longer keys are generally
+    more secure but may not be supported by all algorithms.</description>
+</property>
+
   <!-- file system properties -->
 
 <property>
