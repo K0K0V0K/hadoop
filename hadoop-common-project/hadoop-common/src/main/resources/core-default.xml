@@ -1047,7 +1047,7 @@
 </property>
 
 <property>
-  <name>secret-manager.key-generator.algorithm</name>
+  <name>hadoop.security.secret-manager.key-generator.algorithm</name>
   <value>HmacSHA1</value>
   <description>
     The configuration key specifying the KeyGenerator algorithm used in SecretManager
