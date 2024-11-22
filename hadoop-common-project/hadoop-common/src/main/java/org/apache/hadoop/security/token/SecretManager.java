@@ -121,13 +121,13 @@ public abstract class SecretManager<T extends TokenIdentifier> {
   static {
     Configuration conf = new Configuration();
     String algorithm = conf.get(
-      CommonConfigurationKeysPublic.HMAC_ALGORITHM,
-      CommonConfigurationKeysPublic.DEFAULT_HMAC_ALGORITHM);
+      CommonConfigurationKeysPublic.HADOOP_SECURITY_SECRET_MANAGER_KEY_GENERATOR_ALGORITHM_KEY,
+      CommonConfigurationKeysPublic.HADOOP_SECURITY_SECRET_MANAGER_KEY_GENERATOR_ALGORITHM_DEFAULT);
     LOG.info("Selected hash algorithm: {}", algorithm);
     SELECTED_ALGORITHM = algorithm;
     int length = conf.getInt(
-      CommonConfigurationKeysPublic.HMAC_LENGTH,
-      CommonConfigurationKeysPublic.DEFAULT_HMAC_LENGTH);
+      CommonConfigurationKeysPublic.HADOOP_SECURITY_SECRET_MANAGER_KEY_LENGTH_KEY,
+      CommonConfigurationKeysPublic.HADOOP_SECURITY_SECRET_MANAGER_KEY_LENGTH_DEFAULT);
     LOG.info("Selected hash key length:{}", length);
     SELECTED_LENGTH = length;
   }
@@ -142,7 +142,7 @@ public abstract class SecretManager<T extends TokenIdentifier> {
       try {
         return Mac.getInstance(SELECTED_ALGORITHM);
       } catch (NoSuchAlgorithmException nsa) {
-        throw new IllegalArgumentException("Can't find " + SELECTED_ALGORITHM + " algorithm.");
+        throw new IllegalArgumentException("Can't find " + SELECTED_ALGORITHM, nsa);
       }
     }
   };
@@ -156,7 +156,7 @@ public abstract class SecretManager<T extends TokenIdentifier> {
       keyGen = KeyGenerator.getInstance(SELECTED_ALGORITHM);
       keyGen.init(SELECTED_LENGTH);
     } catch (NoSuchAlgorithmException nsa) {
-      throw new IllegalArgumentException("Can't find " + SELECTED_ALGORITHM + " algorithm.");
+      throw new IllegalArgumentException("Can't find " + SELECTED_ALGORITHM, nsa);
     }
   }
 
