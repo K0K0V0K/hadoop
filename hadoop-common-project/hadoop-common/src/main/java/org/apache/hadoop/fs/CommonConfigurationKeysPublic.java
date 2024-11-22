@@ -1006,7 +1006,7 @@ public class CommonConfigurationKeysPublic {
       "hadoop.security.credstore.java-keystore-provider.password-file";
 
   public static final String HADOOP_SECURITY_SECRET_MANAGER_KEY_GENERATOR_ALGORITHM_KEY =
-    "secret-manager.key-generator.algorith";
+    "secret-manager.key-generator.algorithm";
   public static final String HADOOP_SECURITY_SECRET_MANAGER_KEY_GENERATOR_ALGORITHM_DEFAULT =
     "HmacSHA1";
 
