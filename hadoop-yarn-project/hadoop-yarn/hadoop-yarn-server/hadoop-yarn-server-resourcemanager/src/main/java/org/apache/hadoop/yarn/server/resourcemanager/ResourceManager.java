@@ -82,6 +82,8 @@ import org.apache.hadoop.yarn.server.resourcemanager.metrics.NoOpSystemMetricPub
 import org.apache.hadoop.yarn.server.resourcemanager.metrics.SystemMetricsPublisher;
 import org.apache.hadoop.yarn.server.resourcemanager.metrics.TimelineServiceV1Publisher;
 import org.apache.hadoop.yarn.server.resourcemanager.metrics.TimelineServiceV2Publisher;
+import org.apache.hadoop.yarn.server.resourcemanager.mcp.RMMcpServer;
+import org.apache.hadoop.yarn.server.resourcemanager.mcp.apikey.RMMcpApiKeyManager;
 import org.apache.hadoop.yarn.server.resourcemanager.nodelabels.NodeAttributesManagerImpl;
 import org.apache.hadoop.yarn.server.resourcemanager.nodelabels.RMDelegatedNodeLabelsUpdater;
 import org.apache.hadoop.yarn.server.resourcemanager.nodelabels.RMNodeLabelsManager;
@@ -140,6 +142,7 @@ import org.apache.hadoop.yarn.webapp.WebApps.Builder;
 import org.apache.hadoop.yarn.webapp.util.WebAppUtils;
 import org.apache.zookeeper.server.auth.DigestAuthenticationProvider;
 import org.eclipse.jetty.webapp.WebAppContext;
+import org.glassfish.jersey.server.ResourceConfig;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -228,6 +231,8 @@ public class ResourceManager extends CompositeService
   private FederationStateStoreService federationStateStoreService;
   private ProxyCAManager proxyCAManager;
   private WebApp webApp;
+  private RMMcpServer rmMcpServer;
+  private RMMcpApiKeyManager rmMcpApiKeyManager;
   private AppReportFetcher fetcher = null;
   protected ResourceTrackerService resourceTracker;
   private JvmMetrics jvmMetrics;
@@ -1521,11 +1526,23 @@ public class ResourceManager extends CompositeService
 
     try {
       RMWebApp rmWebApp = new RMWebApp(this);
-      builder.withResourceConfig(rmWebApp.resourceConfig(conf));
+      ResourceConfig resourceConfig = rmWebApp.resourceConfig(conf);
+      if (conf.getBoolean(YarnConfiguration.RM_MCP_ENABLE, YarnConfiguration.DEFAULT_RM_MCP_ENABLE)) {
+        if (UserGroupInformation.isSecurityEnabled()) {
+          rmMcpApiKeyManager = RMMcpApiKeyManager.create(this);
+        }
+        rmMcpServer = RMMcpServer.create(this);
+        rmMcpServer.startHttpServer(conf);
+      }
+      builder.withResourceConfig(resourceConfig);
       webApp = builder.start(rmWebApp, uiWebAppContext, schedulerUiWebAppContext);
     } catch (WebAppException e) {
       webApp = e.getWebApp();
       throw e;
+    } catch (IOException e) {
+      throw new YarnRuntimeException("Failed to start ResourceManager MCP HTTP server", e);
+    } catch (IllegalStateException e) {
+      throw new YarnRuntimeException("Failed to start ResourceManager MCP services", e);
     }
   }
 
@@ -1674,6 +1691,13 @@ public class ResourceManager extends CompositeService
 
   @Override
   protected void serviceStop() throws Exception {
+    if (rmMcpServer != null) {
+      rmMcpServer.close();
+      rmMcpServer = null;
+    }
+    if (rmMcpApiKeyManager != null) {
+      rmMcpApiKeyManager = null;
+    }
     if (webApp != null) {
       webApp.stop();
     }
@@ -1766,6 +1790,11 @@ public class ResourceManager extends CompositeService
   @Private
   public ResourceScheduler getResourceScheduler() {
     return this.scheduler;
+  }
+
+  @Private
+  public RMMcpApiKeyManager getRMMcpApiKeyManager() {
+    return this.rmMcpApiKeyManager;
   }
 
   /**

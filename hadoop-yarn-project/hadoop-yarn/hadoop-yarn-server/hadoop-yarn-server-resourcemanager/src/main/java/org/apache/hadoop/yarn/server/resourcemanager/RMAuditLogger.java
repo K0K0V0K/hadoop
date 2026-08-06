@@ -66,6 +66,7 @@ public class RMAuditLogger {
         "Get Queue Info Request";
     public static final String GET_APPLICATIONS_REQUEST =
         "Get Applications Request";
+    public static final String MCP_TOOL_CALL = "MCP Tool Call";
     public static final String FINISH_SUCCESS_APP = "Application Finished - Succeeded";
     public static final String FINISH_FAILED_APP = "Application Finished - Failed";
     public static final String FINISH_KILLED_APP = "Application Finished - Killed";
@@ -376,6 +377,22 @@ public class RMAuditLogger {
   public static void logSuccess(String user, String operation, String target) {
     if (LOG.isInfoEnabled()) {
       LOG.info(createSuccessLog(user, operation, target, null, null, null, null));
+    }
+  }
+
+  /**
+   * Create a readable and parseable audit log string for a successful event
+   * with an optional description.
+   */
+  public static void logSuccess(String user, String operation, String target,
+      String description) {
+    if (LOG.isInfoEnabled()) {
+      StringBuilder b = createStringBuilderForSuccessEvent(user, operation, target,
+          Server.getRemoteIp());
+      if (description != null) {
+        add(Keys.DESCRIPTION, description, b);
+      }
+      LOG.info(b.toString());
     }
   }
   
