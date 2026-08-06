@@ -264,6 +264,19 @@ Usage:
 
 Runs ResourceManager admin client
 
+### `mcpapikey`
+
+Usage:
+
+```
+yarn mcpapikey [-list]
+yarn mcpapikey -create -ownerUser <user>
+yarn mcpapikey -revoke <keyId>
+yarn mcpapikey -h
+```
+
+Administer MCP API keys on secure ResourceManager clusters. Requires `yarn.resourcemanager.mcp.enable=true`. See [ResourceManager MCP](./ResourceManagerMcp.html) for the MCP endpoint, authentication model, and REST API details.
+
 ### schedulerconf
 
 Usage: `yarn schedulerconf [options]`

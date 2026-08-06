@@ -22,6 +22,8 @@ Overview
 
 The ResourceManager REST API's allow the user to get information about the cluster - status on the cluster, metrics on the cluster, scheduler information, information about nodes in the cluster, and information about applications on the cluster.
 
+When `yarn.resourcemanager.mcp.enable` is set, the ResourceManager also exposes an optional [MCP endpoint](./ResourceManagerMcp.html) on a dedicated port for agent tool calls, plus MCP API key admin REST on this webapp when security is enabled.
+
 Enabling CORS support
 ---------------------
 To enable cross-origin support (CORS) for the RM only(without enabling it for the NM), please set the following configuration parameters:

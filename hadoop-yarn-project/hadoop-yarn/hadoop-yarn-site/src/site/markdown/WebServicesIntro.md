@@ -22,6 +22,8 @@ Overview
 
 The Hadoop YARN web service REST APIs are a set of URI resources that give access to the cluster, nodes, applications, and application historical information. The URI resources are grouped into APIs based on the type of information returned. Some URI resources return collections while others return singletons.
 
+The ResourceManager also supports an optional [Model Context Protocol (MCP)](./ResourceManagerMcp.html) endpoint for agent-driven tool calls on a dedicated port (default `:8092`). MCP is separate from the REST APIs described below and is disabled by default.
+
 URI's
 -----
 

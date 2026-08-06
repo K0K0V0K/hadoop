@@ -131,6 +131,7 @@
       <item name="Fair Scheduler" href="hadoop-yarn/hadoop-yarn-site/FairScheduler.html"/>
       <item name="ResourceManager Restart" href="hadoop-yarn/hadoop-yarn-site/ResourceManagerRestart.html"/>
       <item name="ResourceManager HA" href="hadoop-yarn/hadoop-yarn-site/ResourceManagerHA.html"/>
+      <item name="ResourceManager MCP" href="hadoop-yarn/hadoop-yarn-site/ResourceManagerMcp.html"/>
       <item name="Resource Model" href="hadoop-yarn/hadoop-yarn-site/ResourceModel.html"/>
       <item name="Node Labels" href="hadoop-yarn/hadoop-yarn-site/NodeLabel.html"/>
       <item name="Node Attributes" href="hadoop-yarn/hadoop-yarn-site/NodeAttributes.html"/>
