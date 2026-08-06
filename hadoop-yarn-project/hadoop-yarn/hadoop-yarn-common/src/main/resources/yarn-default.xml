@@ -292,6 +292,36 @@
 
   <property>
     <description>
+      Enable the ResourceManager MCP tool endpoint and dedicated MCP HTTP server.
+      When false, no MCP server is started and MCP API key admin REST is not
+      registered. Disabled by default.
+    </description>
+    <name>yarn.resourcemanager.mcp.enable</name>
+    <value>false</value>
+  </property>
+
+  <property>
+    <description>
+      Bind address for the dedicated ResourceManager MCP server. This port is
+      separate from the RM web application and does not use Kerberos/SPNEGO
+      filters; MCP clients authenticate tool calls with API keys on secure
+      clusters.
+    </description>
+    <name>yarn.resourcemanager.mcp.address</name>
+    <value>0.0.0.0:8092</value>
+  </property>
+
+  <property>
+    <description>
+      When true, the dedicated MCP server uses HTTPS with the daemon SSL
+      keystore. When false, the MCP server serves plain HTTP.
+    </description>
+    <name>yarn.resourcemanager.mcp.use.https</name>
+    <value>true</value>
+  </property>
+
+  <property>
+    <description>
     The Kerberos keytab file to be used for spnego filter for the RM web
     interface.
     </description>

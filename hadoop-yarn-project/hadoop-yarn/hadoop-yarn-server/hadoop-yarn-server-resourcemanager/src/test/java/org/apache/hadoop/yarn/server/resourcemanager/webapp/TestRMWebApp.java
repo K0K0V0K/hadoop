@@ -36,6 +36,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentMap;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.api.protocolrecords.GetApplicationsRequest;
 import org.apache.hadoop.yarn.api.protocolrecords.GetApplicationsResponse;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
@@ -53,6 +54,7 @@ import org.apache.hadoop.yarn.server.resourcemanager.MockNodes;
 import org.apache.hadoop.yarn.server.resourcemanager.RMContext;
 import org.apache.hadoop.yarn.server.resourcemanager.RMContextImpl;
 import org.apache.hadoop.yarn.server.resourcemanager.ResourceManager;
+import org.apache.hadoop.yarn.server.resourcemanager.mcp.RMMcpApiKeyWebServices;
 import org.apache.hadoop.yarn.server.resourcemanager.applicationsmanager.MockAsm;
 import org.apache.hadoop.yarn.server.resourcemanager.nodelabels.NullRMNodeLabelsManager;
 import org.apache.hadoop.yarn.server.resourcemanager.nodelabels.RMNodeLabelsManager;
@@ -431,6 +433,40 @@ public class TestRMWebApp {
 
     assertTrue(resourceConfig.isRegistered(CustomRMWebServices.class));
     assertFalse(resourceConfig.isRegistered(RMWebServices.class));
+  }
+
+  @Test
+  public void testMcpApiKeyAdminResourceNotRegisteredWhenMcpDisabled() {
+    Configuration conf = new Configuration();
+    RMWebApp rmWebApp = new RMWebApp(stubRm(conf));
+
+    ResourceConfig resourceConfig = rmWebApp.resourceConfig(conf);
+
+    assertFalse(resourceConfig.isRegistered(RMMcpApiKeyWebServices.class));
+  }
+
+  @Test
+  public void testMcpApiKeyAdminResourceRegisteredWhenMcpEnabledAndSecure() {
+    Configuration conf = new Configuration();
+    conf.setBoolean(YarnConfiguration.RM_MCP_ENABLE, true);
+    RMWebApp rmWebApp = new RMWebApp(stubRm(conf));
+
+    ResourceConfig resourceConfig = rmWebApp.resourceConfig(conf);
+
+    if (UserGroupInformation.isSecurityEnabled()) {
+      assertTrue(resourceConfig.isRegistered(RMMcpApiKeyWebServices.class));
+    } else {
+      assertFalse(resourceConfig.isRegistered(RMMcpApiKeyWebServices.class));
+    }
+  }
+
+  private static ResourceManager stubRm(Configuration conf) {
+    return new ResourceManager() {
+      @Override
+      public Configuration getConfig() {
+        return conf;
+      }
+    };
   }
 
   private class CustomRMWebServices extends RMWebServices {

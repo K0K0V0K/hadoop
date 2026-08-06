@@ -59,6 +59,7 @@ import org.apache.hadoop.yarn.proto.YarnProtos.ReservationAllocationStateProto;
 import org.apache.hadoop.yarn.security.client.RMDelegationTokenIdentifier;
 import org.apache.hadoop.yarn.server.records.Version;
 import org.apache.hadoop.yarn.server.records.impl.pb.VersionPBImpl;
+import org.apache.hadoop.yarn.server.resourcemanager.mcp.apikey.RMMcpApiKeyRecord;
 import org.apache.hadoop.yarn.server.resourcemanager.recovery.records.AMRMTokenSecretManagerState;
 import org.apache.hadoop.yarn.server.resourcemanager.recovery.records.ApplicationAttemptStateData;
 import org.apache.hadoop.yarn.server.resourcemanager.recovery.records.ApplicationStateData;
@@ -119,6 +120,7 @@ public class FileSystemRMStateStore extends RMStateStore {
   Path amrmTokenSecretManagerRoot;
   private Path reservationRoot;
   private Path proxyCARoot;
+  private Path mcpApiKeysRoot;
 
   @Override
   public synchronized void initInternal(Configuration conf)
@@ -131,6 +133,7 @@ public class FileSystemRMStateStore extends RMStateStore {
         new Path(rootDirPath, AMRMTOKEN_SECRET_MANAGER_ROOT);
     reservationRoot = new Path(rootDirPath, RESERVATION_SYSTEM_ROOT);
     proxyCARoot = new Path(rootDirPath, PROXY_CA_ROOT);
+    mcpApiKeysRoot = new Path(rootDirPath, MCP_API_KEYS_ROOT);
     fsNumRetries =
         conf.getInt(YarnConfiguration.FS_RM_STATE_STORE_NUM_RETRIES,
             YarnConfiguration.DEFAULT_FS_RM_STATE_STORE_NUM_RETRIES);
@@ -164,6 +167,7 @@ public class FileSystemRMStateStore extends RMStateStore {
     mkdirsWithRetries(amrmTokenSecretManagerRoot);
     mkdirsWithRetries(reservationRoot);
     mkdirsWithRetries(proxyCARoot);
+    mkdirsWithRetries(mcpApiKeysRoot);
   }
 
   @Override
@@ -642,6 +646,56 @@ public class FileSystemRMStateStore extends RMStateStore {
     } else {
       writeFileWithRetries(caPrivateKeyPath, caPrivateKeyData, true);
     }
+  }
+
+  @Override
+  synchronized protected void storeMcpApiKeyInternal(RMMcpApiKeyRecord record)
+      throws Exception {
+    Path keyPath = getNodePath(mcpApiKeysRoot, record.getKeyId());
+    byte[] data = mcpApiKeyCrypto.serialize(record);
+    if (existsWithRetries(keyPath)) {
+      updateFile(keyPath, data, true);
+    } else {
+      writeFileWithRetries(keyPath, data, true);
+    }
+  }
+
+  @Override
+  synchronized protected RMMcpApiKeyRecord getMcpApiKeyInternal(String keyId)
+      throws Exception {
+    Path keyPath = getNodePath(mcpApiKeysRoot, keyId);
+    FileStatus status = getFileStatusWithRetries(keyPath);
+    if (status == null) {
+      return null;
+    }
+    byte[] data = readFileWithRetries(keyPath, status.getLen());
+    return mcpApiKeyCrypto.deserialize(data);
+  }
+
+  @Override
+  synchronized protected List<RMMcpApiKeyRecord> listMcpApiKeysInternal()
+      throws Exception {
+    if (!existsWithRetries(mcpApiKeysRoot)) {
+      return new ArrayList<>();
+    }
+    FileStatus[] children = listStatusWithRetries(mcpApiKeysRoot);
+    List<RMMcpApiKeyRecord> records = new ArrayList<>(children.length);
+    for (FileStatus child : children) {
+      if (child.isFile()) {
+        RMMcpApiKeyRecord record = mcpApiKeyCrypto.deserialize(
+            readFileWithRetries(child.getPath(), child.getLen()));
+        if (record != null) {
+          records.add(record);
+        }
+      }
+    }
+    return records;
+  }
+
+  @Override
+  synchronized protected void removeMcpApiKeyInternal(String keyId) throws Exception {
+    Path keyPath = getNodePath(mcpApiKeysRoot, keyId);
+    deleteFileWithRetries(keyPath);
   }
 
   private Path getAppDir(Path root, ApplicationId appId) {

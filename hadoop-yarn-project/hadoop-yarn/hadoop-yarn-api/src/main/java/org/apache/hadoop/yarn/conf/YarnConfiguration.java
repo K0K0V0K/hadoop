@@ -393,6 +393,20 @@ public class YarnConfiguration extends Configuration {
       + "webapp.scheduler-ui.read-only.enable";
   public static final boolean DEFAULT_YARN_WEBAPP_SCHEDULER_UI_READ_ONLY = false;
 
+  /** Enable the MCP endpoint on the ResourceManager web application. */
+  public static final String RM_MCP_ENABLE = "yarn.resourcemanager.mcp.enable";
+  public static final boolean DEFAULT_RM_MCP_ENABLE = false;
+
+  /** Bind address for the dedicated MCP HTTP server (API-key auth only). */
+  public static final String RM_MCP_ADDRESS = RM_PREFIX + "mcp.address";
+  public static final int DEFAULT_RM_MCP_PORT = 8092;
+  public static final String DEFAULT_RM_MCP_ADDRESS =
+      "0.0.0.0:" + DEFAULT_RM_MCP_PORT;
+
+  /** When true, the dedicated MCP server uses HTTPS; otherwise plain HTTP. */
+  public static final String RM_MCP_USE_HTTPS = RM_PREFIX + "mcp.use.https";
+  public static final boolean DEFAULT_RM_MCP_USE_HTTPS = true;
+
   public static final String YARN_API_SERVICES_ENABLE = "yarn."
       + "webapp.api-service.enable";
   public static final String YARN_WEBAPP_UI1_ENABLE_TOOLS = "yarn."
@@ -5375,6 +5389,8 @@ public class YarnConfiguration extends Configuration {
       return YarnConfiguration.DEFAULT_RM_RESOURCE_TRACKER_PORT;
     } else if (addressPrefix.equals(YarnConfiguration.RM_ADMIN_ADDRESS)) {
       return YarnConfiguration.DEFAULT_RM_ADMIN_PORT;
+    } else if (addressPrefix.equals(YarnConfiguration.RM_MCP_ADDRESS)) {
+      return YarnConfiguration.DEFAULT_RM_MCP_PORT;
     } else {
       throw new HadoopIllegalArgumentException(
           "Invalid RM RPC address Prefix: " + addressPrefix

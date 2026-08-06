@@ -54,6 +54,7 @@ function hadoop_usage
   hadoop_add_subcommand "routeradmin" admin "router admin tools"
   hadoop_add_subcommand "gpgadmin" admin "yan gpg admin tools"
   hadoop_add_subcommand "schedulerconf" client "Updates scheduler configuration"
+  hadoop_add_subcommand "mcpapikey" admin "administer ResourceManager MCP API keys"
   hadoop_add_subcommand "scmadmin" admin "SharedCacheManager admin tools"
   hadoop_add_subcommand "sharedcachemanager" daemon "run the SharedCacheManager daemon"
   hadoop_add_subcommand "timelinereader" client "run the timeline reader server"
@@ -199,6 +200,9 @@ ${HADOOP_COMMON_HOME}/${HADOOP_COMMON_LIB_JARS_DIR}"
     ;;
     schedulerconf)
     HADOOP_CLASSNAME='org.apache.hadoop.yarn.client.cli.SchedConfCLI'
+    ;;
+    mcpapikey)
+    HADOOP_CLASSNAME='org.apache.hadoop.yarn.client.cli.McpApiKeyCLI'
     ;;
     scmadmin)
       HADOOP_CLASSNAME='org.apache.hadoop.yarn.client.SCMAdmin'

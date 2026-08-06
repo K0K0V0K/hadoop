@@ -165,6 +165,7 @@ import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.AppActivitiesInf
 import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.AppAttemptInfo;
 import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.AppAttemptsInfo;
 import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.AppInfo;
+import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.AppsInfo;
 import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.AppPriority;
 import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.AppQueue;
 import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.AppState;
@@ -172,7 +173,6 @@ import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.AppTimeoutInfo;
 import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.AppTimeoutsInfo;
 import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.ApplicationStatisticsInfo;
 import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.ApplicationSubmissionContextInfo;
-import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.AppsInfo;
 import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.CapacitySchedulerInfo;
 import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.ClusterInfo;
 import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.ClusterMetricsInfo;
@@ -345,28 +345,7 @@ public class RMWebServices extends WebServices implements RMWebServiceProtocol {
    */
   private void initForWritableEndpoints(UserGroupInformation callerUGI,
       boolean doAdminACLsCheck) throws AuthorizationException {
-    // clear content type
-    response.setContentType(null);
-
-    if (callerUGI == null) {
-      String msg = "Unable to obtain user name, user not authenticated";
-      throw new AuthorizationException(msg);
-    }
-
-    if (UserGroupInformation.isSecurityEnabled() && isStaticUser(callerUGI)) {
-      String msg = "The default static user cannot carry out this operation.";
-      throw new ForbiddenException(msg);
-    }
-
-    if (doAdminACLsCheck) {
-      ApplicationACLsManager aclsManager = rm.getApplicationACLsManager();
-      if (aclsManager.areACLsEnabled()) {
-        if (!aclsManager.isAdmin(callerUGI)) {
-          String msg = "Only admins can carry out this operation.";
-          throw new ForbiddenException(msg);
-        }
-      }
-    }
+    RMWebAppUtil.verifyWritableAdminAccess(callerUGI, rm, conf, response, doAdminACLsCheck);
   }
 
   @GET
@@ -3031,4 +3010,5 @@ public class RMWebServices extends WebServices implements RMWebServiceProtocol {
   public void setResponse(HttpServletResponse response) {
     this.response = response;
   }
+
 }

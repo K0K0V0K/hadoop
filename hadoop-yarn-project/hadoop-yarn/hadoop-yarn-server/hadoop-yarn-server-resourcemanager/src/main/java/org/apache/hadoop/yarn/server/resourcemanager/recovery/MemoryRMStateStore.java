@@ -21,7 +21,9 @@ package org.apache.hadoop.yarn.server.resourcemanager.recovery;
 import java.io.IOException;
 import java.security.PrivateKey;
 import java.security.cert.X509Certificate;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -36,6 +38,7 @@ import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
 import org.apache.hadoop.yarn.proto.YarnProtos.ReservationAllocationStateProto;
 import org.apache.hadoop.yarn.security.client.RMDelegationTokenIdentifier;
 import org.apache.hadoop.yarn.server.records.Version;
+import org.apache.hadoop.yarn.server.resourcemanager.mcp.apikey.RMMcpApiKeyRecord;
 import org.apache.hadoop.yarn.server.resourcemanager.recovery.records.AMRMTokenSecretManagerState;
 import org.apache.hadoop.yarn.server.resourcemanager.recovery.records.ApplicationAttemptStateData;
 import org.apache.hadoop.yarn.server.resourcemanager.recovery.records.ApplicationStateData;
@@ -88,6 +91,11 @@ public class MemoryRMStateStore extends RMStateStore {
       byte[] caPrivateKeyData
           = state.proxyCAState.getCaPrivateKey().getEncoded();
       returnState.proxyCAState.setCaPrivateKey(caPrivateKeyData);
+    }
+    for (Map.Entry<String, RMMcpApiKeyRecord> entry : state.getMcpApiKeyState()
+        .entrySet()) {
+      returnState.getMcpApiKeyState().put(entry.getKey(),
+          RMMcpApiKeyRecord.copyOf(entry.getValue()));
     }
     return returnState;
   }
@@ -293,6 +301,31 @@ public class MemoryRMStateStore extends RMStateStore {
       X509Certificate caCert, PrivateKey caPrivateKey) throws Exception {
     state.getProxyCAState().setCaCert(caCert);
     state.getProxyCAState().setCaPrivateKey(caPrivateKey);
+  }
+
+  @Override
+  protected void storeMcpApiKeyInternal(RMMcpApiKeyRecord record) {
+    state.getMcpApiKeyState().put(record.getKeyId(), RMMcpApiKeyRecord.copyOf(record));
+  }
+
+  @Override
+  protected RMMcpApiKeyRecord getMcpApiKeyInternal(String keyId) {
+    RMMcpApiKeyRecord record = state.getMcpApiKeyState().get(keyId);
+    return record == null ? null : RMMcpApiKeyRecord.copyOf(record);
+  }
+
+  @Override
+  protected List<RMMcpApiKeyRecord> listMcpApiKeysInternal() {
+    List<RMMcpApiKeyRecord> records = new ArrayList<>(state.getMcpApiKeyState().size());
+    for (RMMcpApiKeyRecord record : state.getMcpApiKeyState().values()) {
+      records.add(RMMcpApiKeyRecord.copyOf(record));
+    }
+    return records;
+  }
+
+  @Override
+  protected void removeMcpApiKeyInternal(String keyId) {
+    state.getMcpApiKeyState().remove(keyId);
   }
 
   @Override

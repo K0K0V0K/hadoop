@@ -27,12 +27,15 @@ import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.proto.YarnProtos.ReservationAllocationStateProto;
 import org.apache.hadoop.yarn.security.client.RMDelegationTokenIdentifier;
 import org.apache.hadoop.yarn.server.records.Version;
+import org.apache.hadoop.yarn.server.resourcemanager.mcp.apikey.RMMcpApiKeyRecord;
 import org.apache.hadoop.yarn.server.resourcemanager.recovery.records.AMRMTokenSecretManagerState;
 import org.apache.hadoop.yarn.server.resourcemanager.recovery.records.ApplicationAttemptStateData;
 import org.apache.hadoop.yarn.server.resourcemanager.recovery.records.ApplicationStateData;
 
 import java.security.PrivateKey;
 import java.security.cert.X509Certificate;
+import java.util.Collections;
+import java.util.List;
 
 @Unstable
 public class NullRMStateStore extends RMStateStore {
@@ -181,6 +184,26 @@ public class NullRMStateStore extends RMStateStore {
   @Override
   protected void storeProxyCACertState(
       X509Certificate caCert, PrivateKey caPrivateKey) throws Exception {
+    // Do nothing
+  }
+
+  @Override
+  protected void storeMcpApiKeyInternal(RMMcpApiKeyRecord record) {
+    // Do nothing
+  }
+
+  @Override
+  protected RMMcpApiKeyRecord getMcpApiKeyInternal(String keyId) {
+    return null;
+  }
+
+  @Override
+  protected List<RMMcpApiKeyRecord> listMcpApiKeysInternal() {
+    return Collections.emptyList();
+  }
+
+  @Override
+  protected void removeMcpApiKeyInternal(String keyId) {
     // Do nothing
   }
 }

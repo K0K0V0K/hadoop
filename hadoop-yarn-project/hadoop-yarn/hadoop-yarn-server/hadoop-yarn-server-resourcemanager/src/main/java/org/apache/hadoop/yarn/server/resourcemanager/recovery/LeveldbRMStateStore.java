@@ -29,7 +29,9 @@ import java.io.File;
 import java.io.IOException;
 import java.security.PrivateKey;
 import java.security.cert.X509Certificate;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map.Entry;
 
 import org.apache.hadoop.yarn.server.resourcemanager.DBManager;
@@ -53,6 +55,7 @@ import org.apache.hadoop.yarn.proto.YarnServerResourceManagerRecoveryProtos.Appl
 import org.apache.hadoop.yarn.proto.YarnProtos.ReservationAllocationStateProto;
 import org.apache.hadoop.yarn.security.client.RMDelegationTokenIdentifier;
 import org.apache.hadoop.yarn.server.records.Version;
+import org.apache.hadoop.yarn.server.resourcemanager.mcp.apikey.RMMcpApiKeyRecord;
 import org.apache.hadoop.yarn.server.resourcemanager.recovery.records.AMRMTokenSecretManagerState;
 import org.apache.hadoop.yarn.server.resourcemanager.recovery.records.ApplicationAttemptStateData;
 import org.apache.hadoop.yarn.server.resourcemanager.recovery.records.ApplicationStateData;
@@ -64,6 +67,7 @@ import org.apache.hadoop.yarn.server.resourcemanager.recovery.records.impl.pb.Ap
 import org.apache.hadoop.yarn.server.utils.LeveldbIterator;
 import org.iq80.leveldb.DB;
 import org.iq80.leveldb.DBException;
+import org.iq80.leveldb.DBIterator;
 import org.iq80.leveldb.Options;
 import org.iq80.leveldb.WriteBatch;
 
@@ -89,6 +93,8 @@ public class LeveldbRMStateStore extends RMStateStore {
       RM_APP_ROOT + SEPARATOR + ApplicationId.appIdStrPrefix;
   private static final String RM_RESERVATION_KEY_PREFIX =
       RESERVATION_SYSTEM_ROOT + SEPARATOR;
+  private static final String RM_MCP_API_KEY_PREFIX =
+      MCP_API_KEYS_ROOT + SEPARATOR;
 
   private static final Version CURRENT_VERSION_INFO = Version
       .newInstance(1, 1);
@@ -131,6 +137,10 @@ public class LeveldbRMStateStore extends RMStateStore {
 
   private String getProxyCAPrivateKeyNodeKey() {
     return PROXY_CA_ROOT + SEPARATOR + PROXY_CA_PRIVATE_KEY_NODE;
+  }
+
+  private String getMcpApiKeyNodeKey(String keyId) {
+    return RM_MCP_API_KEY_PREFIX + keyId;
   }
 
   @Override
@@ -750,6 +760,69 @@ public class LeveldbRMStateStore extends RMStateStore {
     } catch (DBException e) {
       throw new IOException(e);
     }
+  }
+
+  @Override
+  protected void storeMcpApiKeyInternal(RMMcpApiKeyRecord record) throws Exception {
+    byte[] data = mcpApiKeyCrypto.serialize(record);
+    try {
+      db.put(bytes(getMcpApiKeyNodeKey(record.getKeyId())), data);
+    } catch (DBException e) {
+      throw new IOException(e);
+    }
+  }
+
+  @Override
+  protected RMMcpApiKeyRecord getMcpApiKeyInternal(String keyId) throws Exception {
+    try {
+      byte[] data = db.get(bytes(getMcpApiKeyNodeKey(keyId)));
+      if (data == null) {
+        return null;
+      }
+      return mcpApiKeyCrypto.deserialize(data);
+    } catch (DBException e) {
+      throw new IOException(e);
+    }
+  }
+
+  @Override
+  protected List<RMMcpApiKeyRecord> listMcpApiKeysInternal() throws Exception {
+    List<RMMcpApiKeyRecord> records = new ArrayList<>();
+    byte[] prefix = bytes(RM_MCP_API_KEY_PREFIX);
+    try (DBIterator iterator = db.iterator()) {
+      iterator.seek(prefix);
+      while (iterator.hasNext()) {
+        Entry<byte[], byte[]> entry = iterator.next();
+        if (!startsWith(entry.getKey(), prefix)) {
+          break;
+        }
+        records.add(mcpApiKeyCrypto.deserialize(entry.getValue()));
+      }
+    } catch (DBException e) {
+      throw new IOException(e);
+    }
+    return records;
+  }
+
+  @Override
+  protected void removeMcpApiKeyInternal(String keyId) throws Exception {
+    try {
+      db.delete(bytes(getMcpApiKeyNodeKey(keyId)));
+    } catch (DBException e) {
+      throw new IOException(e);
+    }
+  }
+
+  private static boolean startsWith(byte[] key, byte[] prefix) {
+    if (key.length < prefix.length) {
+      return false;
+    }
+    for (int i = 0; i < prefix.length; i++) {
+      if (key[i] != prefix[i]) {
+        return false;
+      }
+    }
+    return true;
   }
 
   @Override

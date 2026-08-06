@@ -26,12 +26,14 @@ import java.util.HashMap;
 import java.util.Map;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 import org.apache.commons.codec.binary.Base64;
 import org.apache.hadoop.security.authentication.server.ProxyUserAuthenticationFilterInitializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.CommonConfigurationKeys;
 import org.apache.hadoop.http.lib.StaticUserWebFilter;
 import org.apache.hadoop.io.DataOutputBuffer;
 import org.apache.hadoop.io.Text;
@@ -40,6 +42,10 @@ import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.HttpCrossOriginFilterInitializer;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.authentication.server.KerberosAuthenticationHandler;
+import org.apache.hadoop.security.authorize.AuthorizationException;
+import org.apache.hadoop.yarn.server.resourcemanager.ResourceManager;
+import org.apache.hadoop.yarn.server.security.ApplicationACLsManager;
+import org.apache.hadoop.yarn.webapp.ForbiddenException;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.hadoop.util.StringUtils;
@@ -374,5 +380,49 @@ public final class RMWebAppUtil {
     }
 
     return callerUGI;
+  }
+
+  /**
+   * Verify caller authentication and optional admin ACLs for writable REST endpoints.
+   *
+   * @param callerUGI caller identity
+   * @param rm ResourceManager instance
+   * @param conf configuration
+   * @param response servlet response used to clear content type
+   * @param doAdminACLsCheck whether to enforce YARN admin ACLs
+   * @return verified caller identity
+   * @throws AuthorizationException if the caller is not authenticated
+   */
+  public static UserGroupInformation verifyWritableAdminAccess(
+      UserGroupInformation callerUGI,
+      ResourceManager rm,
+      Configuration conf,
+      HttpServletResponse response,
+      boolean doAdminACLsCheck
+  ) throws AuthorizationException {
+    response.setContentType(null);
+
+    if (callerUGI == null) {
+      throw new AuthorizationException("Unable to obtain user name, user not authenticated");
+    }
+
+    if (UserGroupInformation.isSecurityEnabled() && isStaticUser(callerUGI, conf)) {
+      throw new ForbiddenException("The default static user cannot carry out this operation.");
+    }
+
+    if (doAdminACLsCheck) {
+      ApplicationACLsManager aclsManager = rm.getApplicationACLsManager();
+      if (aclsManager.areACLsEnabled() && !aclsManager.isAdmin(callerUGI)) {
+        throw new ForbiddenException("Only admins can carry out this operation.");
+      }
+    }
+    return callerUGI;
+  }
+
+  private static boolean isStaticUser(UserGroupInformation callerUGI, Configuration conf) {
+    return conf.get(
+        CommonConfigurationKeys.HADOOP_HTTP_STATIC_USER,
+        CommonConfigurationKeys.DEFAULT_HADOOP_HTTP_STATIC_USER
+    ).equals(callerUGI.getUserName());
   }
 }

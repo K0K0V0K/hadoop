@@ -19,6 +19,7 @@
 package org.apache.hadoop.yarn.server.resourcemanager.recovery;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
@@ -30,6 +31,7 @@ import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
@@ -69,6 +71,8 @@ import org.apache.hadoop.yarn.server.records.Version;
 import org.apache.hadoop.yarn.server.resourcemanager.RMFatalEvent;
 import org.apache.hadoop.yarn.server.resourcemanager.RMFatalEventType;
 import org.apache.hadoop.yarn.server.resourcemanager.ResourceManager;
+import org.apache.hadoop.yarn.server.resourcemanager.mcp.apikey.RMMcpApiKeyRecord;
+import org.apache.hadoop.yarn.server.resourcemanager.mcp.apikey.RMMcpApiKeyCrypto;
 import org.apache.hadoop.yarn.server.resourcemanager.recovery.records.AMRMTokenSecretManagerState;
 import org.apache.hadoop.yarn.server.resourcemanager.recovery.records.ApplicationAttemptStateData;
 import org.apache.hadoop.yarn.server.resourcemanager.recovery.records.ApplicationStateData;
@@ -111,6 +115,7 @@ public abstract class RMStateStore extends AbstractService {
   protected static final String RESERVATION_SYSTEM_ROOT =
       "ReservationSystemRoot";
   protected static final String PROXY_CA_ROOT = "ProxyCARoot";
+  protected static final String MCP_API_KEYS_ROOT = "McpApiKeysRoot";
   protected static final String PROXY_CA_CERT_NODE = "caCert";
   protected static final String PROXY_CA_PRIVATE_KEY_NODE = "caPrivateKey";
   protected static final String VERSION_NODE = "RMVersionNode";
@@ -765,6 +770,8 @@ public abstract class RMStateStore extends AbstractService {
 
     ProxyCAState proxyCAState = new ProxyCAState();
 
+    Map<String, RMMcpApiKeyRecord> mcpApiKeyState = new TreeMap<>();
+
     public Map<ApplicationId, ApplicationStateData> getApplicationState() {
       return appState;
     }
@@ -785,6 +792,10 @@ public abstract class RMStateStore extends AbstractService {
     public ProxyCAState getProxyCAState() {
       return proxyCAState;
     }
+
+    public Map<String, RMMcpApiKeyRecord> getMcpApiKeyState() {
+      return mcpApiKeyState;
+    }
   }
     
   private Dispatcher rmDispatcher;
@@ -800,6 +811,7 @@ public abstract class RMStateStore extends AbstractService {
   }
   
   AsyncDispatcher dispatcher;
+  protected RMMcpApiKeyCrypto mcpApiKeyCrypto;
   @SuppressWarnings("rawtypes")
   @VisibleForTesting
   protected EventHandler rmStateStoreEventHandler;
@@ -818,6 +830,7 @@ public abstract class RMStateStore extends AbstractService {
         YarnConfiguration.DEFAULT_RM_EPOCH);
     epochRange = conf.getLong(YarnConfiguration.RM_EPOCH_RANGE,
         YarnConfiguration.DEFAULT_RM_EPOCH_RANGE);
+    mcpApiKeyCrypto = new RMMcpApiKeyCrypto(conf);
     initInternal(conf);
   }
 
@@ -1476,4 +1489,109 @@ public abstract class RMStateStore extends AbstractService {
    */
   protected abstract void storeProxyCACertState(
       X509Certificate caCert, PrivateKey caPrivateKey) throws Exception;
+
+  /**
+   * Store an MCP API key record.
+   *
+   * @param record MCP API key metadata to persist
+   * @throws IOException if the record cannot be stored
+   */
+  public void storeMcpApiKey(RMMcpApiKeyRecord record) throws IOException {
+    try {
+      storeMcpApiKeyInternal(record);
+    } catch (IOException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new IOException("Failed to store MCP API key " + record.getKeyId(), e);
+    }
+  }
+
+  /**
+   * Load an MCP API key record.
+   *
+   * @param keyId MCP API key identifier
+   * @return the stored MCP API key record, or null if not found
+   * @throws IOException if the record cannot be read
+   */
+  public RMMcpApiKeyRecord getMcpApiKey(String keyId) throws IOException {
+    try {
+      return getMcpApiKeyInternal(keyId);
+    } catch (IOException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new IOException("Failed to read MCP API key " + keyId, e);
+    }
+  }
+
+  /**
+   * List all MCP API key records.
+   *
+   * @return all stored MCP API key records
+   * @throws IOException if the records cannot be listed
+   */
+  public List<RMMcpApiKeyRecord> listMcpApiKeys() throws IOException {
+    try {
+      return listMcpApiKeysInternal();
+    } catch (IOException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new IOException("Failed to list MCP API keys", e);
+    }
+  }
+
+  /**
+   * Remove an MCP API key record.
+   *
+   * @param keyId MCP API key identifier
+   * @throws IOException if the record cannot be removed
+   */
+  public void removeMcpApiKey(String keyId) throws IOException {
+    try {
+      removeMcpApiKeyInternal(keyId);
+    } catch (IOException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new IOException("Failed to remove MCP API key " + keyId, e);
+    }
+  }
+
+  /**
+   * Blocking API
+   * Derived classes must implement this method to store an MCP API key record.
+   *
+   * @param record MCP API key metadata to persist
+   * @throws Exception error occurs
+   */
+  protected abstract void storeMcpApiKeyInternal(RMMcpApiKeyRecord record)
+      throws Exception;
+
+  /**
+   * Blocking API
+   * Derived classes must implement this method to load an MCP API key record.
+   *
+   * @param keyId MCP API key identifier
+   * @return the stored MCP API key record, or null if not found
+   * @throws Exception error occurs
+   */
+  protected abstract RMMcpApiKeyRecord getMcpApiKeyInternal(String keyId)
+      throws Exception;
+
+  /**
+   * Blocking API
+   * Derived classes must implement this method to list MCP API key records.
+   *
+   * @return all stored MCP API key records
+   * @throws Exception error occurs
+   */
+  protected abstract List<RMMcpApiKeyRecord> listMcpApiKeysInternal()
+      throws Exception;
+
+  /**
+   * Blocking API
+   * Derived classes must implement this method to remove an MCP API key record.
+   *
+   * @param keyId MCP API key identifier
+   * @throws Exception error occurs
+   */
+  protected abstract void removeMcpApiKeyInternal(String keyId) throws Exception;
 }

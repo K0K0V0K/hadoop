@@ -37,7 +37,7 @@ public final class YarnWebServiceUtils {
 
   private YarnWebServiceUtils() {}
 
-  private static ObjectMapper mapper = new ObjectMapper();
+  private static final ObjectMapper mapper = new ObjectMapper();
 
   /**
    * Utility function to get NodeInfo by calling RM WebService.

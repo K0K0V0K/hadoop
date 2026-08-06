@@ -87,6 +87,9 @@ import org.apache.hadoop.yarn.server.webapp.dao.ContainerInfo;
 import org.apache.hadoop.yarn.server.webapp.dao.ContainersInfo;
 import org.apache.hadoop.yarn.webapp.RemoteExceptionData;
 import org.apache.hadoop.yarn.webapp.dao.ConfInfo;
+import org.apache.hadoop.yarn.webapp.dao.McpApiKeyCreateRequest;
+import org.apache.hadoop.yarn.webapp.dao.McpApiKeyInfo;
+import org.apache.hadoop.yarn.webapp.dao.McpApiKeysInfo;
 import org.apache.hadoop.yarn.webapp.dao.SchedConfUpdateInfo;
 
 /**
@@ -152,7 +155,8 @@ public class ClassSerialisationConfig {
           CapacitySchedulerHealthInfo.class, CapacitySchedulerInfo.class,
           CapacitySchedulerQueueInfo.class, CapacitySchedulerQueueInfoList.class, ClusterInfo.class,
           ClusterMetricsInfo.class, ConfigVersionInfo.class, ContainerInfo.class,
-          FairSchedulerQueueInfoList.class, FifoSchedulerInfo.class, NewReservation.class,
+          FairSchedulerQueueInfoList.class, FifoSchedulerInfo.class, McpApiKeyInfo.class,
+          McpApiKeysInfo.class, NewReservation.class,
           NodeInfo.class, NodesInfo.class, QueueAclInfo.class, QueueAclsInfo.class,
           RemoteExceptionData.class, ReservationDeleteRequestInfo.class,
           ReservationDeleteResponseInfo.class, ReservationSubmissionRequestInfo.class,
@@ -165,7 +169,7 @@ public class ClassSerialisationConfig {
       Sets.newHashSet(ApplicationSubmissionContextInfo.class, AppPriority.class, AppQueue.class,
           AppState.class, ClusterUserInfo.class, ConfInfo.class, ContainersInfo.class ,
           ContainerLaunchContextInfo.class, DelegationToken.class, LabelsToNodesInfo.class,
-          LocalResourceInfo.class, NewApplication.class, NodeLabelsInfo.class,
+          LocalResourceInfo.class, McpApiKeyCreateRequest.class, NewApplication.class, NodeLabelsInfo.class,
           NodeToLabelsEntryList.class, NodeToLabelsInfo.class, ReservationListInfo.class,
           ResourceOptionInfo.class, RMQueueAclInfo.class, SchedConfUpdateInfo.class);
 

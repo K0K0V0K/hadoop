@@ -23,6 +23,7 @@ import static org.apache.hadoop.yarn.util.StringHelper.pajoin;
 import java.net.InetSocketAddress;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.hadoop.ha.HAServiceProtocol.HAServiceState;
@@ -31,6 +32,7 @@ import org.apache.hadoop.yarn.server.resourcemanager.webapp.jsonprovider.JsonPro
 import org.apache.hadoop.yarn.util.RMHAUtils;
 import org.apache.hadoop.yarn.server.resourcemanager.RMContext;
 import org.apache.hadoop.yarn.server.resourcemanager.ResourceManager;
+import org.apache.hadoop.yarn.server.resourcemanager.mcp.RMMcpApiKeyWebServices;
 import org.apache.hadoop.yarn.webapp.GenericExceptionHandler;
 import org.apache.hadoop.yarn.webapp.WebApp;
 import org.apache.hadoop.yarn.webapp.YarnWebParams;
@@ -66,6 +68,11 @@ public class RMWebApp extends WebApp implements YarnWebParams {
     resourceConfig.register(GenericExceptionHandler.class);
     resourceConfig.register(JsonProviderFeature.class);
     resourceConfig.register(JAXBContextResolver.class);
+    if (config.getBoolean(YarnConfiguration.RM_MCP_ENABLE,
+        YarnConfiguration.DEFAULT_RM_MCP_ENABLE)
+        && UserGroupInformation.isSecurityEnabled()) {
+      resourceConfig.register(RMMcpApiKeyWebServices.class);
+    }
     return resourceConfig;
   }
 

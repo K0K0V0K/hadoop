@@ -264,6 +264,11 @@ public final class RMWSConsts {
   public static final String NAME = "name";
   public static final String ACTIVITIES_COUNT = "activitiesCount";
 
+  /** Path for MCP API key administration. */
+  public static final String MCP_API_KEYS = "/mcp-api-keys";
+  public static final String MCP_API_KEYS_KEYID = "/mcp-api-keys/{keyId}";
+  public static final String KEY_ID = "keyId";
+
   private RMWSConsts() {
     // not called
   }

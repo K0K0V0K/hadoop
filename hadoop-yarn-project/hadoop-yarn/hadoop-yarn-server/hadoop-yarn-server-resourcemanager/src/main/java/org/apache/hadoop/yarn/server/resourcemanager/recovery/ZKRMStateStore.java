@@ -47,6 +47,7 @@ import org.apache.hadoop.yarn.proto.YarnProtos.ReservationAllocationStateProto;
 import org.apache.hadoop.yarn.security.client.RMDelegationTokenIdentifier;
 import org.apache.hadoop.yarn.server.records.Version;
 import org.apache.hadoop.yarn.server.records.impl.pb.VersionPBImpl;
+import org.apache.hadoop.yarn.server.resourcemanager.mcp.apikey.RMMcpApiKeyRecord;
 import org.apache.hadoop.yarn.server.resourcemanager.recovery.records.AMRMTokenSecretManagerState;
 import org.apache.hadoop.yarn.server.resourcemanager.recovery.records.ApplicationAttemptStateData;
 import org.apache.hadoop.yarn.server.resourcemanager.recovery.records.ApplicationStateData;
@@ -208,6 +209,7 @@ public class ZKRMStateStore extends RMStateStore {
   private String amrmTokenSecretManagerRoot;
   private String reservationRoot;
   private String proxyCARoot;
+  private String mcpApiKeysRoot;
 
   @VisibleForTesting
   protected String znodeWorkingPath;
@@ -374,6 +376,7 @@ public class ZKRMStateStore extends RMStateStore {
     amrmTokenSecretManagerRoot =
         getNodePath(zkRootNodePath, AMRMTOKEN_SECRET_MANAGER_ROOT);
     proxyCARoot = getNodePath(zkRootNodePath, PROXY_CA_ROOT);
+    mcpApiKeysRoot = getNodePath(zkRootNodePath, MCP_API_KEYS_ROOT);
     reservationRoot = getNodePath(zkRootNodePath, RESERVATION_SYSTEM_ROOT);
     zkManager = resourceManager.getZKManager();
     if(zkManager==null) {
@@ -420,6 +423,7 @@ public class ZKRMStateStore extends RMStateStore {
     create(amrmTokenSecretManagerRoot);
     create(reservationRoot);
     create(proxyCARoot);
+    create(mcpApiKeysRoot);
   }
 
   private void logRootNodeAcls(String prefix) throws Exception {
@@ -1271,6 +1275,52 @@ public class ZKRMStateStore extends RMStateStore {
       zkManager.safeCreate(caPrivateKeyPath, caPrivateKeyData, zkAcl,
           CreateMode.PERSISTENT, zkAcl, fencingNodePath);
     }
+  }
+
+  @Override
+  protected void storeMcpApiKeyInternal(RMMcpApiKeyRecord record) throws Exception {
+    String path = getMcpApiKeyPath(record.getKeyId());
+    byte[] data = mcpApiKeyCrypto.serialize(record);
+    if (exists(path)) {
+      zkManager.safeSetData(path, data, -1, zkAcl, fencingNodePath);
+    } else {
+      zkManager.safeCreate(path, data, zkAcl, CreateMode.PERSISTENT, zkAcl,
+          fencingNodePath);
+    }
+  }
+
+  @Override
+  protected RMMcpApiKeyRecord getMcpApiKeyInternal(String keyId) throws Exception {
+    String path = getMcpApiKeyPath(keyId);
+    if (!exists(path)) {
+      return null;
+    }
+    return mcpApiKeyCrypto.deserialize(zkManager.getData(path));
+  }
+
+  @Override
+  protected List<RMMcpApiKeyRecord> listMcpApiKeysInternal() throws Exception {
+    List<String> children = zkManager.getChildren(mcpApiKeysRoot);
+    List<RMMcpApiKeyRecord> records = new ArrayList<>(children.size());
+    for (String child : children) {
+      RMMcpApiKeyRecord record = getMcpApiKeyInternal(child);
+      if (record != null) {
+        records.add(record);
+      }
+    }
+    return records;
+  }
+
+  @Override
+  protected void removeMcpApiKeyInternal(String keyId) throws Exception {
+    String path = getMcpApiKeyPath(keyId);
+    if (exists(path)) {
+      zkManager.safeDelete(path, zkAcl, fencingNodePath);
+    }
+  }
+
+  private String getMcpApiKeyPath(String keyId) {
+    return getNodePath(mcpApiKeysRoot, keyId);
   }
 
   /**
