@@ -256,6 +256,76 @@ public class TestMcpHttpServlet {
     McpHttpResponse response = handle(server, request);
 
     assertEquals(400, response.status());
+    assertEquals(McpJsonRpc.TRANSPORT_INVALID_NOTIFICATION_MESSAGE,
+        response.body().get("error").get("message").asText());
+  }
+
+  @Test
+  public void testPingAllowedBeforeInitialize() throws Exception {
+    McpServer server = McpServer.sync(JSON_MAPPER)
+        .serverInfo("test-server", "1.0")
+        .build();
+
+    JsonNode request = OBJECT_MAPPER.readTree(
+        "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"ping\"}");
+    McpHttpResponse response = handle(server, request);
+
+    assertEquals(200, response.status());
+    assertTrue(response.body().has("result"));
+    assertTrue(response.body().get("result").isObject());
+    assertEquals(0, response.body().get("result").size());
+  }
+
+  @Test
+  public void testForbiddenOriginRejected() throws Exception {
+    McpServer server = McpServer.sync(JSON_MAPPER)
+        .serverInfo("test-server", "1.0")
+        .build();
+
+    JsonNode request = OBJECT_MAPPER.readTree(
+        "{\"jsonrpc\":\"2.0\",\"id\":13,\"method\":\"ping\"}");
+    McpHttpResponse response = server.getRequestHandler().handle(request,
+        new McpCallContext(McpTestHttpRequests.withHeaders(null, null,
+            "https://evil.example.com")));
+
+    assertEquals(403, response.status());
+    assertEquals(McpJsonRpc.TRANSPORT_FORBIDDEN_ORIGIN_MESSAGE,
+        response.body().get("error").get("message").asText());
+  }
+
+  @Test
+  public void testMissingSessionHeaderRejected() throws Exception {
+    McpServer server = McpServer.sync(JSON_MAPPER)
+        .serverInfo("test-server", "1.0")
+        .capabilities(McpSchema.ServerCapabilities.withTools())
+        .build();
+
+    JsonNode request = OBJECT_MAPPER.readTree(
+        "{\"jsonrpc\":\"2.0\",\"id\":14,\"method\":\"tools/list\",\"params\":{}}");
+    McpHttpResponse response = server.getRequestHandler().handle(request,
+        new McpCallContext(McpTestHttpRequests.withHeaders(null, null, null)));
+
+    assertEquals(400, response.status());
+    assertEquals(McpJsonRpc.TRANSPORT_MISSING_SESSION_MESSAGE,
+        response.body().get("error").get("message").asText());
+  }
+
+  @Test
+  public void testInvalidProtocolVersionRejected() throws Exception {
+    McpServer server = McpServer.sync(JSON_MAPPER)
+        .serverInfo("test-server", "1.0")
+        .build();
+
+    String sessionId = initializeSession(server);
+
+    JsonNode request = OBJECT_MAPPER.readTree(
+        "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}");
+    McpHttpResponse response = server.getRequestHandler().handle(request,
+        new McpCallContext(McpTestHttpRequests.withHeaders(sessionId, "2099-01-01", null)));
+
+    assertEquals(400, response.status());
+    assertEquals(McpJsonRpc.TRANSPORT_UNSUPPORTED_PROTOCOL_VERSION_MESSAGE,
+        response.body().get("error").get("message").asText());
   }
 
   @Test
@@ -301,5 +371,7 @@ public class TestMcpHttpServlet {
     McpHttpResponse response = handler.handle(listRequest, sessionContext(sessionId));
 
     assertEquals(404, response.status());
+    assertEquals(McpJsonRpc.TRANSPORT_SESSION_NOT_FOUND_MESSAGE,
+        response.body().get("error").get("message").asText());
   }
 }

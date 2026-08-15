@@ -52,6 +52,14 @@ public final class McpJsonRpc {
   public static final String LIFECYCLE_UNKNOWN_SESSION_MESSAGE =
       "Unknown or missing MCP session";
   public static final String DUPLICATE_REQUEST_ID_MESSAGE = "Duplicate request id";
+  public static final String TRANSPORT_FORBIDDEN_ORIGIN_MESSAGE = "Origin not allowed";
+  public static final String TRANSPORT_MISSING_SESSION_MESSAGE =
+      "Missing Mcp-Session-Id header";
+  public static final String TRANSPORT_UNSUPPORTED_PROTOCOL_VERSION_MESSAGE =
+      "Unsupported MCP-Protocol-Version";
+  public static final String TRANSPORT_SESSION_NOT_FOUND_MESSAGE = "Session not found";
+  public static final String TRANSPORT_INVALID_NOTIFICATION_MESSAGE =
+      "Invalid MCP notification for session";
 
   /** Maximum MCP JSON-RPC request body size accepted by {@link McpHttpServlet}. */
   public static final int MAX_REQUEST_BODY_BYTES = 1024 * 1024;

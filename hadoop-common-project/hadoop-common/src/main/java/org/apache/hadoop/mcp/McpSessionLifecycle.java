@@ -41,7 +41,8 @@ final class McpSessionLifecycle {
   }
 
   McpHttpResponse validateActiveSession(McpCallContext context, String method) {
-    if (McpRequestHandler.METHOD_INITIALIZE.equals(method)) {
+    if (McpRequestHandler.METHOD_INITIALIZE.equals(method)
+        || McpRequestHandler.METHOD_PING.equals(method)) {
       return null;
     }
     String sessionId = context.getSessionId();
@@ -52,7 +53,7 @@ final class McpSessionLifecycle {
       return null;
     }
     if (context.getRequest() != null) {
-      return McpHttpResponse.notFound();
+      return McpHttpResponse.notFound(McpJsonRpc.TRANSPORT_SESSION_NOT_FOUND_MESSAGE);
     }
     return null;
   }
@@ -76,7 +77,7 @@ final class McpSessionLifecycle {
   McpHttpResponse handleNotification(String method, McpCallContext context) {
     if (INITIALIZED_NOTIFICATION.equals(method)) {
       if (!sessionManager.markOperating(context.getSessionId())) {
-        return McpHttpResponse.badRequest();
+        return McpHttpResponse.badRequest(McpJsonRpc.TRANSPORT_INVALID_NOTIFICATION_MESSAGE);
       }
     }
     return McpHttpResponse.notification();

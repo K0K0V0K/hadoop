@@ -27,7 +27,7 @@ import java.util.Map;
 import javax.servlet.http.HttpServletRequest;
 
 /**
- * Minimal {@link HttpServletRequest} stub for MCP lifecycle tests.
+ * Minimal {@link HttpServletRequest} stub for MCP transport tests.
  */
 final class McpTestHttpRequests {
 
@@ -35,9 +35,20 @@ final class McpTestHttpRequests {
   }
 
   static HttpServletRequest withSessionId(String sessionId) {
+    return withHeaders(sessionId, null, null);
+  }
+
+  static HttpServletRequest withHeaders(String sessionId, String protocolVersion,
+      String origin) {
     Map<String, String> headers = new HashMap<>();
     if (sessionId != null) {
       headers.put(McpRequestHandler.SESSION_HEADER, sessionId);
+    }
+    if (protocolVersion != null) {
+      headers.put(McpHttpTransportValidator.PROTOCOL_VERSION_HEADER, protocolVersion);
+    }
+    if (origin != null) {
+      headers.put("Origin", origin);
     }
     return newRequest(headers);
   }

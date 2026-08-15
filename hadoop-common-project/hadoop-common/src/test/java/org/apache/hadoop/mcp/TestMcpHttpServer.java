@@ -161,6 +161,22 @@ public class TestMcpHttpServer {
   }
 
   @Test
+  public void testGetReturnsMethodNotAllowed() throws Exception {
+    McpServer server = McpServer.sync(JSON_MAPPER)
+        .serverInfo("test-server", "1.0")
+        .build();
+
+    try (McpHttpServer httpServer = McpHttpServer.start(server, new Configuration(),
+        new InetSocketAddress("localhost", 0), "/mcp", false)) {
+      URL url = new URL("http://localhost:" + httpServer.getPort() + "/mcp");
+      HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+      conn.setRequestMethod("GET");
+
+      assertEquals(405, conn.getResponseCode());
+    }
+  }
+
+  @Test
   public void testEmptyBodyReturnsParseError() throws Exception {
     McpServer server = McpServer.sync(JSON_MAPPER)
         .serverInfo("test-server", "1.0")

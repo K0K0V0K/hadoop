@@ -25,6 +25,8 @@ import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 /**
  * HTTP response produced by {@link McpRequestHandler}.
@@ -36,6 +38,7 @@ public final class McpHttpResponse {
   private static final int STATUS_OK = 200;
   private static final int STATUS_ACCEPTED = 202;
   private static final int STATUS_BAD_REQUEST = 400;
+  private static final int STATUS_FORBIDDEN = 403;
   private static final int STATUS_NOT_FOUND = 404;
 
   private final int status;
@@ -56,12 +59,16 @@ public final class McpHttpResponse {
     return new McpHttpResponse(STATUS_OK, headers, body);
   }
 
-  public static McpHttpResponse badRequest() {
-    return new McpHttpResponse(STATUS_BAD_REQUEST, Collections.emptyMap(), null);
+  public static McpHttpResponse badRequest(String message) {
+    return transportError(STATUS_BAD_REQUEST, McpJsonRpc.INVALID_REQUEST, message);
   }
 
-  public static McpHttpResponse notFound() {
-    return new McpHttpResponse(STATUS_NOT_FOUND, Collections.emptyMap(), null);
+  public static McpHttpResponse forbidden(String message) {
+    return transportError(STATUS_FORBIDDEN, McpJsonRpc.INVALID_REQUEST, message);
+  }
+
+  public static McpHttpResponse notFound(String message) {
+    return transportError(STATUS_NOT_FOUND, McpJsonRpc.INVALID_REQUEST, message);
   }
 
   public int status() {
@@ -74,5 +81,15 @@ public final class McpHttpResponse {
 
   public JsonNode body() {
     return body;
+  }
+
+  private static McpHttpResponse transportError(int status, int code, String message) {
+    ObjectNode response = JsonNodeFactory.instance.objectNode();
+    response.put("jsonrpc", McpJsonRpc.VERSION);
+    ObjectNode error = JsonNodeFactory.instance.objectNode();
+    error.put("code", code);
+    error.put("message", message);
+    response.set("error", error);
+    return new McpHttpResponse(status, Collections.emptyMap(), response);
   }
 }

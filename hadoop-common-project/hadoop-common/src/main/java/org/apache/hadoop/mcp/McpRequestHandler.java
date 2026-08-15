@@ -45,6 +45,7 @@ public final class McpRequestHandler {
   public static final String SESSION_HEADER = "Mcp-Session-Id";
 
   public static final String METHOD_INITIALIZE = "initialize";
+  public static final String METHOD_PING = "ping";
   public static final String METHOD_TOOLS_LIST = "tools/list";
   public static final String METHOD_TOOLS_CALL = "tools/call";
 
@@ -97,6 +98,11 @@ public final class McpRequestHandler {
     }
 
     String method = requestNode.get("method").asText();
+    error = McpHttpTransportValidator.validate(context, requestNode);
+    if (error != null) {
+      return error;
+    }
+
     error = sessionLifecycle.validateActiveSession(context, method);
     if (error != null) {
       return error;
@@ -119,6 +125,8 @@ public final class McpRequestHandler {
     switch (method) {
     case METHOD_INITIALIZE:
       return initializeResponse(idNode);
+    case METHOD_PING:
+      return jsonRpcResponses.success(idNode, Collections.emptyMap());
     case METHOD_TOOLS_LIST:
       return sessionLifecycle.withOperatingSession(context, idNode,
           jsonRpcResponses.success(idNode, buildToolsListResult()));
