@@ -22,6 +22,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
@@ -30,12 +31,17 @@ import com.fasterxml.jackson.databind.JsonNode;
 
 /**
  * In-memory MCP session lifecycle tracker for Streamable HTTP transport.
+ *
+ * <p>Tool call rate limits are enforced per MCP session ({@code Mcp-Session-Id}),
+ * not per HTTP connection.
  */
 @InterfaceAudience.Private
 @InterfaceStability.Evolving
 final class McpSessionManager {
 
+  static final int DEFAULT_MAX_TOOL_CALLS_PER_MINUTE = 120;
   static final long DEFAULT_SESSION_IDLE_TIMEOUT_MS = 30L * 60L * 1000L;
+  private static final long TOOL_CALL_WINDOW_MS = 60_000L;
 
   enum State {
     /** {@code initialize} succeeded; waiting for {@code notifications/initialized}. */
@@ -48,6 +54,8 @@ final class McpSessionManager {
     private final String sessionId;
     private volatile State state;
     private final Set<String> usedRequestIds = ConcurrentHashMap.newKeySet();
+    private final AtomicInteger toolCallsInWindow = new AtomicInteger();
+    private volatile long toolCallWindowStartMs = System.currentTimeMillis();
     private volatile long lastAccessMs = System.currentTimeMillis();
 
     private Session(String sessionId, State state) {
@@ -77,13 +85,19 @@ final class McpSessionManager {
   }
 
   private final ConcurrentMap<String, Session> sessions = new ConcurrentHashMap<>();
+  private final int maxToolCallsPerMinute;
   private final long sessionIdleTimeoutMs;
 
   McpSessionManager() {
-    this(DEFAULT_SESSION_IDLE_TIMEOUT_MS);
+    this(DEFAULT_MAX_TOOL_CALLS_PER_MINUTE, DEFAULT_SESSION_IDLE_TIMEOUT_MS);
   }
 
-  McpSessionManager(long sessionIdleTimeoutMs) {
+  McpSessionManager(int maxToolCallsPerMinute) {
+    this(maxToolCallsPerMinute, DEFAULT_SESSION_IDLE_TIMEOUT_MS);
+  }
+
+  McpSessionManager(int maxToolCallsPerMinute, long sessionIdleTimeoutMs) {
+    this.maxToolCallsPerMinute = maxToolCallsPerMinute;
     this.sessionIdleTimeoutMs = sessionIdleTimeoutMs;
   }
 
@@ -134,6 +148,24 @@ final class McpSessionManager {
       return true;
     }
     return session.usedRequestIds.add(requestIdKey(idNode));
+  }
+
+  boolean tryAcquireToolCall(String sessionId) {
+    Session session = getSession(sessionId);
+    if (session == null) {
+      return true;
+    }
+    long now = System.currentTimeMillis();
+    synchronized (session) {
+      if (now - session.toolCallWindowStartMs >= TOOL_CALL_WINDOW_MS) {
+        session.toolCallWindowStartMs = now;
+        session.toolCallsInWindow.set(0);
+      }
+      if (session.toolCallsInWindow.incrementAndGet() > maxToolCallsPerMinute) {
+        return false;
+      }
+      return true;
+    }
   }
 
   void evictExpiredSessions() {

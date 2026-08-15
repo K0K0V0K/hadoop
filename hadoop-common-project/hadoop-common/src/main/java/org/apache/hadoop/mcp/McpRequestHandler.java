@@ -27,6 +27,7 @@ import java.util.Map;
 
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
+import org.apache.hadoop.mcp.McpSchema.CallToolResult;
 import org.apache.hadoop.mcp.McpSchema.ServerCapabilities;
 import org.apache.hadoop.mcp.McpSchema.Tool;
 import org.apache.hadoop.mcp.McpServer.RegisteredTool;
@@ -180,19 +181,36 @@ public final class McpRequestHandler {
     if (!(nameObject instanceof String)) {
       return jsonRpcResponses.error(idNode, McpJsonRpc.INVALID_PARAMS, "Missing tool name");
     }
+    String toolName = (String) nameObject;
 
-    RegisteredTool registeredTool = tools.get(nameObject);
+    if (!sessionManager.tryAcquireToolCall(context.getSessionId())) {
+      return jsonRpcResponses.error(idNode, McpJsonRpc.TOOL_CALL_RATE_LIMIT,
+          McpJsonRpc.TOOL_CALL_RATE_LIMIT_MESSAGE);
+    }
+
+    RegisteredTool registeredTool = tools.get(toolName);
     if (registeredTool == null) {
       return jsonRpcResponses.error(idNode, McpJsonRpc.INVALID_PARAMS,
-          "Unknown tool: " + nameObject);
+          "Unknown tool: " + toolName);
     }
 
     Object argumentsObject = params.get("arguments");
-    Map<String, Object> arguments = argumentsObject instanceof Map
-        ? objectMapper.convertValue(objectMapper.valueToTree(argumentsObject), PARAMS_TYPE)
-        : Collections.emptyMap();
+    if (argumentsObject != null && !(argumentsObject instanceof Map)) {
+      return jsonRpcResponses.error(idNode, McpJsonRpc.INVALID_PARAMS,
+          "Tool arguments must be an object");
+    }
+    Map<String, Object> arguments = argumentsObject == null
+        ? Collections.emptyMap()
+        : objectMapper.convertValue(objectMapper.valueToTree(argumentsObject), PARAMS_TYPE);
 
-    return jsonRpcResponses.success(idNode, McpJsonRpcResponses.toResultMap(
-        registeredTool.call(context, arguments)));
+    String validationError = McpToolInputValidator.validate(
+        registeredTool.tool().inputSchema(), arguments);
+    if (validationError != null) {
+      return jsonRpcResponses.error(idNode, McpJsonRpc.INVALID_PARAMS, validationError);
+    }
+
+    CallToolResult callResult = McpOutputSanitizer.sanitize(
+        registeredTool.call(context, arguments));
+    return jsonRpcResponses.success(idNode, McpJsonRpcResponses.toResultMap(callResult));
   }
 }

@@ -329,6 +329,93 @@ public class TestMcpHttpServlet {
   }
 
   @Test
+  public void testToolInputValidationRejected() throws Exception {
+    McpServer server = McpServer.sync(JSON_MAPPER)
+        .serverInfo("test-server", "1.0")
+        .capabilities(McpSchema.ServerCapabilities.withTools())
+        .toolCall(McpSchema.Tool.of("echo", "Echo input", JSON_MAPPER,
+            "{\"type\":\"object\",\"required\":[\"name\"],"
+                + "\"properties\":{\"name\":{\"type\":\"string\"}}}"),
+            (context, args) -> McpSchema.CallToolResult.text("ok"))
+        .build();
+
+    String sessionId = initializeSession(server);
+    sendInitialized(server, sessionId);
+
+    JsonNode request = OBJECT_MAPPER.readTree(
+        "{\"jsonrpc\":\"2.0\",\"id\":11,\"method\":\"tools/call\","
+            + "\"params\":{\"name\":\"echo\",\"arguments\":{}}}");
+    McpHttpResponse response = server.getRequestHandler().handle(request,
+        sessionContext(sessionId));
+
+    JsonNode body = response.body();
+    assertEquals(McpJsonRpc.INVALID_PARAMS, body.get("error").get("code").asInt());
+    assertEquals("Missing required argument: name",
+        body.get("error").get("message").asText());
+  }
+
+  @Test
+  public void testToolOutputSanitized() throws Exception {
+    McpServer server = McpServer.sync(JSON_MAPPER)
+        .serverInfo("test-server", "1.0")
+        .capabilities(McpSchema.ServerCapabilities.withTools())
+        .toolCall(McpSchema.Tool.of("echo", "Echo input", JSON_MAPPER,
+                "{\"type\":\"object\",\"properties\":{}}"),
+            (context, args) -> McpSchema.CallToolResult.text("ok\u0001"))
+        .build();
+
+    String sessionId = initializeSession(server);
+    sendInitialized(server, sessionId);
+
+    JsonNode request = OBJECT_MAPPER.readTree(
+        "{\"jsonrpc\":\"2.0\",\"id\":12,\"method\":\"tools/call\","
+            + "\"params\":{\"name\":\"echo\",\"arguments\":{}}}");
+    McpHttpResponse response = server.getRequestHandler().handle(request,
+        sessionContext(sessionId));
+
+    JsonNode body = response.body();
+    assertEquals("ok", body.get("result").get("content").get(0).get("text").asText());
+  }
+
+  @Test
+  public void testToolCallRateLimitRejected() throws Exception {
+    McpSessionManager sessionManager = new McpSessionManager(1);
+    McpRequestHandler handler = new McpRequestHandler(OBJECT_MAPPER, "test-server", "1.0",
+        McpSchema.ServerCapabilities.withTools(),
+        Collections.singletonMap("echo", new McpServer.RegisteredTool(
+            McpSchema.Tool.of("echo", "Echo input", JSON_MAPPER,
+                "{\"type\":\"object\",\"properties\":{}}"),
+            (context, args) -> McpSchema.CallToolResult.text("ok"))),
+        sessionManager);
+
+    JsonNode initRequest = OBJECT_MAPPER.readTree(
+        "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\","
+            + "\"params\":{\"protocolVersion\":\"2025-06-18\",\"capabilities\":{},"
+            + "\"clientInfo\":{\"name\":\"test\",\"version\":\"1.0\"}}}");
+    McpHttpResponse initResponse = handle(handler, initRequest);
+    String sessionId = initResponse.headers().get(McpRequestHandler.SESSION_HEADER);
+
+    JsonNode initializedRequest = OBJECT_MAPPER.readTree(
+        "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}");
+    assertEquals(202, handler.handle(initializedRequest, sessionContext(sessionId)).status());
+
+    JsonNode firstCall = OBJECT_MAPPER.readTree(
+        "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/call\","
+            + "\"params\":{\"name\":\"echo\",\"arguments\":{}}}");
+    assertEquals(200, handler.handle(firstCall, sessionContext(sessionId)).status());
+
+    JsonNode secondCall = OBJECT_MAPPER.readTree(
+        "{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"tools/call\","
+            + "\"params\":{\"name\":\"echo\",\"arguments\":{}}}");
+    McpHttpResponse response = handler.handle(secondCall, sessionContext(sessionId));
+
+    JsonNode body = response.body();
+    assertEquals(McpJsonRpc.TOOL_CALL_RATE_LIMIT, body.get("error").get("code").asInt());
+    assertEquals(McpJsonRpc.TOOL_CALL_RATE_LIMIT_MESSAGE,
+        body.get("error").get("message").asText());
+  }
+
+  @Test
   public void testDuplicateRequestIdRejected() throws Exception {
     McpServer server = McpServer.sync(JSON_MAPPER)
         .serverInfo("test-server", "1.0")
@@ -351,7 +438,7 @@ public class TestMcpHttpServlet {
 
   @Test
   public void testExpiredSessionReturnsNotFoundOverHttp() throws Exception {
-    McpSessionManager sessionManager = new McpSessionManager(1);
+    McpSessionManager sessionManager = new McpSessionManager(120, 1);
     McpRequestHandler handler = new McpRequestHandler(OBJECT_MAPPER, "test-server", "1.0",
         McpSchema.ServerCapabilities.withTools(),
         Collections.<String, McpServer.RegisteredTool>emptyMap(),

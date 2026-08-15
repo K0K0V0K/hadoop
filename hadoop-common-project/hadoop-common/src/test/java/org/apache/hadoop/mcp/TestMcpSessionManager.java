@@ -53,7 +53,7 @@ public class TestMcpSessionManager {
 
   @Test
   public void testExpiredSessionEvicted() throws Exception {
-    McpSessionManager manager = new McpSessionManager(1);
+    McpSessionManager manager = new McpSessionManager(120, 1);
     McpSessionManager.Session session = manager.createSession();
     String sessionId = session.sessionId();
 
@@ -66,7 +66,7 @@ public class TestMcpSessionManager {
 
   @Test
   public void testActiveSessionRefreshedOnAccess() throws Exception {
-    McpSessionManager manager = new McpSessionManager(50);
+    McpSessionManager manager = new McpSessionManager(120, 50);
     McpSessionManager.Session session = manager.createSession();
     String sessionId = session.sessionId();
 
@@ -75,6 +75,16 @@ public class TestMcpSessionManager {
 
     Thread.sleep(30);
     assertTrue(manager.getSession(sessionId) != null);
+  }
+
+  @Test
+  public void testToolCallRateLimit() {
+    McpSessionManager manager = new McpSessionManager(2);
+    McpSessionManager.Session session = manager.createSession();
+
+    assertTrue(manager.tryAcquireToolCall(session.sessionId()));
+    assertTrue(manager.tryAcquireToolCall(session.sessionId()));
+    assertTrue(!manager.tryAcquireToolCall(session.sessionId()));
   }
 
   @Test

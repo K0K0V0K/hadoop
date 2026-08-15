@@ -42,6 +42,9 @@ public final class McpJsonRpc {
   /** JSON-RPC 2.0 invalid params. */
   public static final int INVALID_PARAMS = -32602;
 
+  /** Server-defined rate limit exceeded (JSON-RPC -32000..-32099 range). */
+  public static final int TOOL_CALL_RATE_LIMIT = -32003;
+
   public static final String PARSE_ERROR_MESSAGE = "Parse error";
   public static final String INVALID_REQUEST_MESSAGE = "Invalid Request";
   public static final String REQUEST_BODY_TOO_LARGE_MESSAGE = "Request body too large";
@@ -60,6 +63,11 @@ public final class McpJsonRpc {
   public static final String TRANSPORT_SESSION_NOT_FOUND_MESSAGE = "Session not found";
   public static final String TRANSPORT_INVALID_NOTIFICATION_MESSAGE =
       "Invalid MCP notification for session";
+  public static final String TOOL_CALL_RATE_LIMIT_MESSAGE =
+      "Tool call rate limit exceeded";
+
+  /** Maximum characters returned in a single tool output text block. */
+  public static final int MAX_TOOL_OUTPUT_TEXT_CHARS = 256 * 1024;
 
   /** Maximum MCP JSON-RPC request body size accepted by {@link McpHttpServlet}. */
   public static final int MAX_REQUEST_BODY_BYTES = 1024 * 1024;

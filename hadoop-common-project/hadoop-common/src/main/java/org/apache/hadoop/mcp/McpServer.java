@@ -123,7 +123,7 @@ public final class McpServer implements Closeable {
     private final Tool tool;
     private final McpToolCallHandler handler;
 
-    private RegisteredTool(Tool tool, McpToolCallHandler handler) {
+    RegisteredTool(Tool tool, McpToolCallHandler handler) {
       this.tool = tool;
       this.handler = handler;
     }
