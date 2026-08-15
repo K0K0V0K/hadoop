@@ -18,12 +18,38 @@
 
 package org.apache.hadoop.mcp;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 public class TestMcpSessionManager {
+
+  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
+  @Test
+  public void testDuplicateRequestIdsRejected() throws Exception {
+    McpSessionManager manager = new McpSessionManager();
+    McpSessionManager.Session session = manager.createSession();
+
+    assertTrue(manager.registerRequestId(session.sessionId(),
+        OBJECT_MAPPER.readTree("1")));
+    assertFalse(manager.registerRequestId(session.sessionId(),
+        OBJECT_MAPPER.readTree("1")));
+  }
+
+  @Test
+  public void testCreateSessionRegistersInitialRequestId() throws Exception {
+    McpSessionManager manager = new McpSessionManager();
+    McpSessionManager.Session session = manager.createSession(
+        OBJECT_MAPPER.readTree("1"));
+
+    assertFalse(manager.registerRequestId(session.sessionId(),
+        OBJECT_MAPPER.readTree("1")));
+  }
 
   @Test
   public void testExpiredSessionEvicted() throws Exception {

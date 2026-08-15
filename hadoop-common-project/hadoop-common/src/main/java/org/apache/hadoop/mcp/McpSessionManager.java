@@ -18,12 +18,15 @@
 
 package org.apache.hadoop.mcp;
 
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
+
+import com.fasterxml.jackson.databind.JsonNode;
 
 /**
  * In-memory MCP session lifecycle tracker for Streamable HTTP transport.
@@ -44,6 +47,7 @@ final class McpSessionManager {
   static final class Session {
     private final String sessionId;
     private volatile State state;
+    private final Set<String> usedRequestIds = ConcurrentHashMap.newKeySet();
     private volatile long lastAccessMs = System.currentTimeMillis();
 
     private Session(String sessionId, State state) {
@@ -84,9 +88,16 @@ final class McpSessionManager {
   }
 
   Session createSession() {
+    return createSession(null);
+  }
+
+  Session createSession(JsonNode initialRequestId) {
     evictExpiredSessions();
     String sessionId = UUID.randomUUID().toString();
     Session session = new Session(sessionId, State.AWAITING_INITIALIZED);
+    if (initialRequestId != null) {
+      session.usedRequestIds.add(requestIdKey(initialRequestId));
+    }
     sessions.put(sessionId, session);
     return session;
   }
@@ -117,9 +128,24 @@ final class McpSessionManager {
     return true;
   }
 
+  boolean registerRequestId(String sessionId, JsonNode idNode) {
+    Session session = getSession(sessionId);
+    if (session == null) {
+      return true;
+    }
+    return session.usedRequestIds.add(requestIdKey(idNode));
+  }
+
   void evictExpiredSessions() {
     long nowMs = System.currentTimeMillis();
     sessions.entrySet().removeIf(entry ->
         entry.getValue().isExpired(nowMs, sessionIdleTimeoutMs));
+  }
+
+  private static String requestIdKey(JsonNode idNode) {
+    if (idNode.isIntegralNumber()) {
+      return "n:" + idNode.asLong();
+    }
+    return "s:" + idNode.asText();
   }
 }

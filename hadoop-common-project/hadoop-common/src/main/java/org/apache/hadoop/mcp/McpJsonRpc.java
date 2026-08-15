@@ -51,6 +51,7 @@ public final class McpJsonRpc {
       "MCP session awaiting notifications/initialized";
   public static final String LIFECYCLE_UNKNOWN_SESSION_MESSAGE =
       "Unknown or missing MCP session";
+  public static final String DUPLICATE_REQUEST_ID_MESSAGE = "Duplicate request id";
 
   /** Maximum MCP JSON-RPC request body size accepted by {@link McpHttpServlet}. */
   public static final int MAX_REQUEST_BODY_BYTES = 1024 * 1024;

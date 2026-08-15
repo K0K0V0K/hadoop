@@ -57,6 +57,22 @@ final class McpSessionLifecycle {
     return null;
   }
 
+  McpHttpResponse checkDuplicateRequestId(McpCallContext context, String method,
+      JsonNode idNode) {
+    if (McpRequestHandler.METHOD_INITIALIZE.equals(method)) {
+      return null;
+    }
+    String sessionId = context.getSessionId();
+    if (sessionId == null || sessionId.isEmpty()) {
+      return null;
+    }
+    if (!sessionManager.registerRequestId(sessionId, idNode)) {
+      return responses.error(idNode, McpJsonRpc.INVALID_REQUEST,
+          McpJsonRpc.DUPLICATE_REQUEST_ID_MESSAGE);
+    }
+    return null;
+  }
+
   McpHttpResponse handleNotification(String method, McpCallContext context) {
     if (INITIALIZED_NOTIFICATION.equals(method)) {
       if (!sessionManager.markOperating(context.getSessionId())) {

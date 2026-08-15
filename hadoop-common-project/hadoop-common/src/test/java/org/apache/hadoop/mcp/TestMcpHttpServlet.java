@@ -259,6 +259,27 @@ public class TestMcpHttpServlet {
   }
 
   @Test
+  public void testDuplicateRequestIdRejected() throws Exception {
+    McpServer server = McpServer.sync(JSON_MAPPER)
+        .serverInfo("test-server", "1.0")
+        .capabilities(McpSchema.ServerCapabilities.withTools())
+        .build();
+
+    String sessionId = initializeSession(server);
+    sendInitialized(server, sessionId);
+
+    JsonNode request = OBJECT_MAPPER.readTree(
+        "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\",\"params\":{}}");
+    McpHttpResponse response = server.getRequestHandler().handle(request,
+        sessionContext(sessionId));
+
+    JsonNode body = response.body();
+    assertEquals(McpJsonRpc.INVALID_REQUEST, body.get("error").get("code").asInt());
+    assertEquals(McpJsonRpc.DUPLICATE_REQUEST_ID_MESSAGE,
+        body.get("error").get("message").asText());
+  }
+
+  @Test
   public void testExpiredSessionReturnsNotFoundOverHttp() throws Exception {
     McpSessionManager sessionManager = new McpSessionManager(1);
     McpRequestHandler handler = new McpRequestHandler(OBJECT_MAPPER, "test-server", "1.0",

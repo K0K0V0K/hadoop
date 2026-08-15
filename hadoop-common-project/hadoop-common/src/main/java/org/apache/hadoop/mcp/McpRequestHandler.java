@@ -107,6 +107,10 @@ public final class McpRequestHandler {
     }
 
     JsonNode idNode = requestNode.get("id");
+    error = sessionLifecycle.checkDuplicateRequestId(context, method, idNode);
+    if (error != null) {
+      return error;
+    }
     JsonNode paramsNode = requestNode.get("params");
     Map<String, Object> params = paramsNode == null || paramsNode.isNull()
         ? Collections.emptyMap()
@@ -142,7 +146,7 @@ public final class McpRequestHandler {
     result.put("serverInfo", serverInfo);
 
     Map<String, String> headers = new HashMap<>();
-    McpSessionManager.Session session = sessionManager.createSession();
+    McpSessionManager.Session session = sessionManager.createSession(idNode);
     headers.put(SESSION_HEADER, session.sessionId());
     return jsonRpcResponses.success(idNode, result, headers);
   }
