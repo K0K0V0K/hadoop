@@ -31,12 +31,19 @@ import org.apache.hadoop.classification.InterfaceStability;
 public final class McpCallContext {
 
   private final HttpServletRequest request;
+  private final String sessionId;
 
   public McpCallContext(HttpServletRequest request) {
     this.request = request;
+    this.sessionId = request == null ? null
+        : request.getHeader(McpRequestHandler.SESSION_HEADER);
   }
 
   public HttpServletRequest getRequest() {
     return request;
+  }
+
+  public String getSessionId() {
+    return sessionId;
   }
 }

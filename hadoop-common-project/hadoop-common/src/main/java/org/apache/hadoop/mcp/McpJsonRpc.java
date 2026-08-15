@@ -45,6 +45,12 @@ public final class McpJsonRpc {
   public static final String PARSE_ERROR_MESSAGE = "Parse error";
   public static final String INVALID_REQUEST_MESSAGE = "Invalid Request";
   public static final String REQUEST_BODY_TOO_LARGE_MESSAGE = "Request body too large";
+  public static final String LIFECYCLE_NOT_INITIALIZED_MESSAGE =
+      "MCP session not initialized; send initialize first";
+  public static final String LIFECYCLE_AWAITING_INITIALIZED_MESSAGE =
+      "MCP session awaiting notifications/initialized";
+  public static final String LIFECYCLE_UNKNOWN_SESSION_MESSAGE =
+      "Unknown or missing MCP session";
 
   /** Maximum MCP JSON-RPC request body size accepted by {@link McpHttpServlet}. */
   public static final int MAX_REQUEST_BODY_BYTES = 1024 * 1024;

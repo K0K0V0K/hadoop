@@ -22,6 +22,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.Collections;
+
 import org.junit.jupiter.api.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -33,6 +35,40 @@ public class TestMcpHttpServlet {
   private static final JacksonMcpJsonMapper JSON_MAPPER =
       new JacksonMcpJsonMapper(OBJECT_MAPPER);
 
+  private static final McpCallContext NO_HTTP_CONTEXT = new McpCallContext(null);
+
+  private static McpCallContext sessionContext(String sessionId) {
+    return new McpCallContext(McpTestHttpRequests.withSessionId(sessionId));
+  }
+
+  private static McpHttpResponse handle(McpServer server, JsonNode request) {
+    return server.getRequestHandler().handle(request, NO_HTTP_CONTEXT);
+  }
+
+  private static McpHttpResponse handle(McpRequestHandler handler, JsonNode request) {
+    return handler.handle(request, NO_HTTP_CONTEXT);
+  }
+
+  private static String initializeSession(McpServer server) throws Exception {
+    JsonNode request = OBJECT_MAPPER.readTree(
+        "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\","
+            + "\"params\":{\"protocolVersion\":\"2025-06-18\",\"capabilities\":{},"
+            + "\"clientInfo\":{\"name\":\"test\",\"version\":\"1.0\"}}}");
+    McpHttpResponse response = handle(server, request);
+    assertEquals(200, response.status());
+    String sessionId = response.headers().get(McpRequestHandler.SESSION_HEADER);
+    assertNotNull(sessionId);
+    return sessionId;
+  }
+
+  private static void sendInitialized(McpServer server, String sessionId) throws Exception {
+    JsonNode request = OBJECT_MAPPER.readTree(
+        "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}");
+    McpHttpResponse response = server.getRequestHandler().handle(request,
+        sessionContext(sessionId));
+    assertEquals(202, response.status());
+  }
+
   @Test
   public void testToolsList() throws Exception {
     McpServer server = McpServer.sync(JSON_MAPPER)
@@ -43,16 +79,55 @@ public class TestMcpHttpServlet {
             (context, args) -> McpSchema.CallToolResult.text("ok"))
         .build();
 
+    String sessionId = initializeSession(server);
+    sendInitialized(server, sessionId);
+
     JsonNode request = OBJECT_MAPPER.readTree(
-        "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\",\"params\":{}}");
-    McpHttpResponse response = server.getRequestHandler().handle(request);
+        "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/list\",\"params\":{}}");
+    McpHttpResponse response = server.getRequestHandler().handle(request,
+        sessionContext(sessionId));
 
     assertEquals(200, response.status());
     JsonNode body = response.body();
     assertEquals("2.0", body.get("jsonrpc").asText());
-    assertEquals(1, body.get("id").asInt());
+    assertEquals(2, body.get("id").asInt());
     assertTrue(body.get("result").get("tools").isArray());
     assertEquals("echo", body.get("result").get("tools").get(0).get("name").asText());
+  }
+
+  @Test
+  public void testToolsListBeforeInitializeRejected() throws Exception {
+    McpServer server = McpServer.sync(JSON_MAPPER)
+        .serverInfo("test-server", "1.0")
+        .capabilities(McpSchema.ServerCapabilities.withTools())
+        .build();
+
+    JsonNode request = OBJECT_MAPPER.readTree(
+        "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\",\"params\":{}}");
+    McpHttpResponse response = handle(server, request);
+
+    assertEquals(McpJsonRpc.INVALID_REQUEST, response.body().get("error").get("code").asInt());
+    assertEquals(McpJsonRpc.LIFECYCLE_UNKNOWN_SESSION_MESSAGE,
+        response.body().get("error").get("message").asText());
+  }
+
+  @Test
+  public void testToolsListBeforeInitializedNotificationRejected() throws Exception {
+    McpServer server = McpServer.sync(JSON_MAPPER)
+        .serverInfo("test-server", "1.0")
+        .capabilities(McpSchema.ServerCapabilities.withTools())
+        .build();
+
+    String sessionId = initializeSession(server);
+
+    JsonNode request = OBJECT_MAPPER.readTree(
+        "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/list\",\"params\":{}}");
+    McpHttpResponse response = server.getRequestHandler().handle(request,
+        sessionContext(sessionId));
+
+    assertEquals(McpJsonRpc.INVALID_REQUEST, response.body().get("error").get("code").asInt());
+    assertEquals(McpJsonRpc.LIFECYCLE_AWAITING_INITIALIZED_MESSAGE,
+        response.body().get("error").get("message").asText());
   }
 
   @Test
@@ -65,10 +140,14 @@ public class TestMcpHttpServlet {
             (context, args) -> McpSchema.CallToolResult.text("{\"value\":\"test\"}"))
         .build();
 
+    String sessionId = initializeSession(server);
+    sendInitialized(server, sessionId);
+
     JsonNode request = OBJECT_MAPPER.readTree(
         "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/call\","
             + "\"params\":{\"name\":\"echo\",\"arguments\":{}}}");
-    McpHttpResponse response = server.getRequestHandler().handle(request);
+    McpHttpResponse response = server.getRequestHandler().handle(request,
+        sessionContext(sessionId));
 
     JsonNode body = response.body();
     assertEquals("test", OBJECT_MAPPER.readTree(
@@ -81,10 +160,14 @@ public class TestMcpHttpServlet {
         .serverInfo("test-server", "1.0")
         .build();
 
+    String sessionId = initializeSession(server);
+    sendInitialized(server, sessionId);
+
     JsonNode request = OBJECT_MAPPER.readTree(
         "{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"tools/call\","
             + "\"params\":{\"name\":\"missing\",\"arguments\":{}}}");
-    McpHttpResponse response = server.getRequestHandler().handle(request);
+    McpHttpResponse response = server.getRequestHandler().handle(request,
+        sessionContext(sessionId));
 
     JsonNode body = response.body();
     assertNotNull(body.get("error"));
@@ -98,7 +181,7 @@ public class TestMcpHttpServlet {
         .build();
 
     JsonNode request = OBJECT_MAPPER.readTree("{\"id\":1,\"method\":\"tools/list\"}");
-    McpHttpResponse response = server.getRequestHandler().handle(request);
+    McpHttpResponse response = handle(server, request);
 
     JsonNode body = response.body();
     assertEquals(McpJsonRpc.INVALID_REQUEST, body.get("error").get("code").asInt());
@@ -117,11 +200,12 @@ public class TestMcpHttpServlet {
         "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\","
             + "\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{},"
             + "\"clientInfo\":{\"name\":\"test\",\"version\":\"1.0\"}}}");
-    McpHttpResponse response = server.getRequestHandler().handle(request);
+    McpHttpResponse response = handle(server, request);
 
     JsonNode body = response.body();
     assertEquals(McpJsonRpc.PROTOCOL_VERSION,
         body.get("result").get("protocolVersion").asText());
+    assertNotNull(response.headers().get(McpRequestHandler.SESSION_HEADER));
   }
 
   @Test
@@ -131,9 +215,13 @@ public class TestMcpHttpServlet {
         .capabilities(McpSchema.ServerCapabilities.withTools())
         .build();
 
+    String sessionId = initializeSession(server);
+    sendInitialized(server, sessionId);
+
     JsonNode request = OBJECT_MAPPER.readTree(
         "{\"jsonrpc\":\"2.0\",\"id\":\"req-1\",\"method\":\"tools/list\",\"params\":{}}");
-    McpHttpResponse response = server.getRequestHandler().handle(request);
+    McpHttpResponse response = server.getRequestHandler().handle(request,
+        sessionContext(sessionId));
 
     JsonNode body = response.body();
     assertEquals("req-1", body.get("id").asText());
@@ -141,16 +229,56 @@ public class TestMcpHttpServlet {
   }
 
   @Test
-  public void testNotificationWithoutIdReturnsAccepted() throws Exception {
+  public void testInitializedNotificationCompletesLifecycle() throws Exception {
+    McpServer server = McpServer.sync(JSON_MAPPER)
+        .serverInfo("test-server", "1.0")
+        .build();
+
+    String sessionId = initializeSession(server);
+
+    JsonNode request = OBJECT_MAPPER.readTree(
+        "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}");
+    McpHttpResponse response = server.getRequestHandler().handle(request,
+        sessionContext(sessionId));
+
+    assertEquals(202, response.status());
+    assertTrue(response.body() == null);
+  }
+
+  @Test
+  public void testInitializedNotificationWithoutSessionReturnsBadRequest() throws Exception {
     McpServer server = McpServer.sync(JSON_MAPPER)
         .serverInfo("test-server", "1.0")
         .build();
 
     JsonNode request = OBJECT_MAPPER.readTree(
         "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}");
-    McpHttpResponse response = server.getRequestHandler().handle(request);
+    McpHttpResponse response = handle(server, request);
 
-    assertEquals(202, response.status());
-    assertTrue(response.body() == null);
+    assertEquals(400, response.status());
+  }
+
+  @Test
+  public void testExpiredSessionReturnsNotFoundOverHttp() throws Exception {
+    McpSessionManager sessionManager = new McpSessionManager(1);
+    McpRequestHandler handler = new McpRequestHandler(OBJECT_MAPPER, "test-server", "1.0",
+        McpSchema.ServerCapabilities.withTools(),
+        Collections.<String, McpServer.RegisteredTool>emptyMap(),
+        sessionManager);
+
+    JsonNode initRequest = OBJECT_MAPPER.readTree(
+        "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\","
+            + "\"params\":{\"protocolVersion\":\"2025-06-18\",\"capabilities\":{},"
+            + "\"clientInfo\":{\"name\":\"test\",\"version\":\"1.0\"}}}");
+    McpHttpResponse initResponse = handle(handler, initRequest);
+    String sessionId = initResponse.headers().get(McpRequestHandler.SESSION_HEADER);
+
+    Thread.sleep(10);
+
+    JsonNode listRequest = OBJECT_MAPPER.readTree(
+        "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/list\",\"params\":{}}");
+    McpHttpResponse response = handler.handle(listRequest, sessionContext(sessionId));
+
+    assertEquals(404, response.status());
   }
 }

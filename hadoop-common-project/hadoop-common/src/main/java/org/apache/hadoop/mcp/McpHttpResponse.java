@@ -35,6 +35,8 @@ public final class McpHttpResponse {
 
   private static final int STATUS_OK = 200;
   private static final int STATUS_ACCEPTED = 202;
+  private static final int STATUS_BAD_REQUEST = 400;
+  private static final int STATUS_NOT_FOUND = 404;
 
   private final int status;
   private final Map<String, String> headers;
@@ -52,6 +54,14 @@ public final class McpHttpResponse {
 
   public static McpHttpResponse ok(JsonNode body, Map<String, String> headers) {
     return new McpHttpResponse(STATUS_OK, headers, body);
+  }
+
+  public static McpHttpResponse badRequest() {
+    return new McpHttpResponse(STATUS_BAD_REQUEST, Collections.emptyMap(), null);
+  }
+
+  public static McpHttpResponse notFound() {
+    return new McpHttpResponse(STATUS_NOT_FOUND, Collections.emptyMap(), null);
   }
 
   public int status() {

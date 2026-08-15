@@ -24,7 +24,6 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
@@ -56,16 +55,26 @@ public final class McpRequestHandler {
   private final String serverVersion;
   private final ServerCapabilities capabilities;
   private final Map<String, RegisteredTool> tools;
+  private final McpSessionManager sessionManager;
   private final McpJsonRpcResponses jsonRpcResponses;
+  private final McpSessionLifecycle sessionLifecycle;
 
   McpRequestHandler(ObjectMapper objectMapper, String serverName, String serverVersion,
       ServerCapabilities capabilities, Map<String, RegisteredTool> tools) {
+    this(objectMapper, serverName, serverVersion, capabilities, tools, new McpSessionManager());
+  }
+
+  McpRequestHandler(ObjectMapper objectMapper, String serverName, String serverVersion,
+      ServerCapabilities capabilities, Map<String, RegisteredTool> tools,
+      McpSessionManager sessionManager) {
     this.objectMapper = objectMapper;
     this.serverName = serverName;
     this.serverVersion = serverVersion;
     this.capabilities = capabilities;
     this.tools = Collections.unmodifiableMap(new LinkedHashMap<>(tools));
+    this.sessionManager = sessionManager;
     this.jsonRpcResponses = new McpJsonRpcResponses(objectMapper);
+    this.sessionLifecycle = new McpSessionLifecycle(sessionManager, jsonRpcResponses);
   }
 
   public McpHttpResponse handle(JsonNode requestNode) {
@@ -88,8 +97,13 @@ public final class McpRequestHandler {
     }
 
     String method = requestNode.get("method").asText();
+    error = sessionLifecycle.validateActiveSession(context, method);
+    if (error != null) {
+      return error;
+    }
+
     if (McpJsonRpcValidator.isNotification(method)) {
-      return McpHttpResponse.notification();
+      return sessionLifecycle.handleNotification(method, context);
     }
 
     JsonNode idNode = requestNode.get("id");
@@ -102,12 +116,19 @@ public final class McpRequestHandler {
     case METHOD_INITIALIZE:
       return initializeResponse(idNode);
     case METHOD_TOOLS_LIST:
-      return jsonRpcResponses.success(idNode, buildToolsListResult());
-    case METHOD_TOOLS_CALL:
+      return sessionLifecycle.withOperatingSession(context, idNode,
+          jsonRpcResponses.success(idNode, buildToolsListResult()));
+    case METHOD_TOOLS_CALL: {
+      McpHttpResponse lifecycleError = sessionLifecycle.checkOperatingSession(context, idNode);
+      if (lifecycleError != null) {
+        return lifecycleError;
+      }
       return toolsCallResponse(idNode, params, context);
+    }
     default:
-      return jsonRpcResponses.error(idNode, McpJsonRpc.METHOD_NOT_FOUND,
-          "Method not found: " + method);
+      return sessionLifecycle.withOperatingSession(context, idNode,
+          jsonRpcResponses.error(idNode, McpJsonRpc.METHOD_NOT_FOUND,
+              "Method not found: " + method));
     }
   }
 
@@ -121,7 +142,8 @@ public final class McpRequestHandler {
     result.put("serverInfo", serverInfo);
 
     Map<String, String> headers = new HashMap<>();
-    headers.put(SESSION_HEADER, UUID.randomUUID().toString());
+    McpSessionManager.Session session = sessionManager.createSession();
+    headers.put(SESSION_HEADER, session.sessionId());
     return jsonRpcResponses.success(idNode, result, headers);
   }
 
